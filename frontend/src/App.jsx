@@ -2,17 +2,25 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import WebApp from '@twa-dev/sdk'; 
+
+// Екрани
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
+
+// Іконки
 import { FiUser, FiUsers, FiMap } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
 import { FaRunning, FaClock, FaDumbbell } from 'react-icons/fa';
 import { MdFitnessCenter, MdSelfImprovement } from 'react-icons/md';
+
+// Дані про тренування
 import { upcomingWorkouts } from './data/gymData'; 
 
-// 👇 ГОЛОВНЕ: Посилання на твій сервер
+// 👇 ТВОЯ АДРЕСА СЕРВЕРА
 const API_URL = "https://gym-telegram-app.onrender.com";
+
+// --- КОМПОНЕНТИ ---
 
 const Header = ({ name, avatar }) => (
   <div className="header">
@@ -27,17 +35,22 @@ const ProfileScreen = ({ user, onBuyClick }) => {
   if (!user) return <div style={{textAlign:'center', marginTop: 50}}>Завантаження профілю...</div>;
 
   const { subscription } = user;
+
+  // Рахуємо відсотки
   const timePercent = subscription.days_total > 0 ? (subscription.days_left / subscription.days_total) * 100 : 0;
   const sessionsPercent = subscription.sessions_total > 0 ? (subscription.sessions_left / subscription.sessions_total) * 100 : 0;
 
   return (
     <>
       <Header name={user.name} avatar={user.avatar} />
+      
       <section className="section-margin">
         {subscription.active ? (
           <div className="sub-card glow-effect">
               <div className="sub-card-content">
                   <h2 className="sub-title" style={{marginBottom: '15px'}}>{subscription.title}</h2>
+                  
+                  {/* СМУЖКА 1: ЧАС */}
                   <div className="progress-label-row">
                     <span style={{fontSize: '12px', color: '#aaa'}}><FaClock style={{marginRight:5}}/>Термін дії</span>
                     <span style={{fontSize: '12px', color: '#fff'}}>{subscription.days_left} днів (до {subscription.expiry_date})</span>
@@ -45,6 +58,8 @@ const ProfileScreen = ({ user, onBuyClick }) => {
                   <div className="progress-container" style={{height: '8px', marginBottom: '15px'}}>
                     <div className="progress-bar-fill" style={{ width: `${timePercent}%`, background: 'var(--accent-red)' }} />
                   </div>
+
+                  {/* СМУЖКА 2: ТРЕНУВАННЯ */}
                   {!subscription.is_unlimited && (
                     <>
                       <div className="progress-label-row" style={{marginTop: '10px'}}>
@@ -56,6 +71,7 @@ const ProfileScreen = ({ user, onBuyClick }) => {
                       </div>
                     </>
                   )}
+
                   {subscription.is_unlimited && (
                      <p style={{marginTop: '10px', fontSize: '13px', color: '#4CC9F0', display: 'flex', alignItems: 'center'}}>
                        <FaDumbbell style={{marginRight: 8}}/> Безлімітне відвідування 🔥
@@ -73,6 +89,7 @@ const ProfileScreen = ({ user, onBuyClick }) => {
           </div>
         )}
       </section>
+
       <section className="section-margin">
         <h2 className="section-title">Мої записи</h2>
         <div className="workouts-list">
@@ -94,6 +111,7 @@ const ProfileScreen = ({ user, onBuyClick }) => {
   );
 };
 
+// --- НАВІГАЦІЯ ---
 const BottomNavigation = ({ activeTab, onTabClick }) => {
   const navItems = [
     { icon: FiUser, label: 'Профіль' },
@@ -101,6 +119,7 @@ const BottomNavigation = ({ activeTab, onTabClick }) => {
     { icon: FiUsers, label: 'Тренери' },
     { icon: FiMap, label: 'Мапа' },
   ];
+
   return (
     <div className="bottom-nav glow-top">
       {navItems.map((item, index) => {
@@ -116,17 +135,21 @@ const BottomNavigation = ({ activeTab, onTabClick }) => {
   );
 };
 
+// --- ГОЛОВНИЙ ДОДАТОК ---
 const App = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [userProfile, setUserProfile] = useState(null);
   const [userID, setUserID] = useState(null); 
 
+  // 1. Ініціалізація Телеграму
   useEffect(() => {
     if (WebApp.initData) {
         WebApp.ready();
         WebApp.expand(); 
     }
+
     const tgUser = WebApp.initDataUnsafe?.user;
+
     if (tgUser) {
       setUserID(tgUser.id.toString()); 
     } else {
@@ -134,11 +157,30 @@ const App = () => {
     }
   }, []);
 
+  // 2. Завантаження даних (З КЕШУВАННЯМ 🚀)
   useEffect(() => {
     if (userID) {
+      const cacheKey = `profile_${userID}`;
+
+      // А. Спочатку перевіряємо кеш (миттєве відображення)
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        try {
+          setUserProfile(JSON.parse(cachedData));
+        } catch (e) {
+          console.error("Помилка читання кешу", e);
+        }
+      }
+
+      // Б. Потім тягнемо свіжі дані з сервера
       fetch(`${API_URL}/api/profile/${userID}`)
         .then(response => response.json())
-        .then(data => setUserProfile(data))
+        .then(data => {
+          // Оновлюємо екран свіжими даними
+          setUserProfile(data);
+          // Оновлюємо кеш на майбутнє
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        })
         .catch(error => console.error("Помилка:", error));
     }
   }, [userID]);
@@ -160,4 +202,5 @@ const App = () => {
     </div>
   );
 };
+
 export default App;
