@@ -1,16 +1,20 @@
 # backend/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Dict
+import requests # <--- Нова бібліотека
 
 app = FastAPI()
 
-# --- 1. CORS (ДОЗВОЛЯЄМО ВСІМ) ---
-# Це критично важливо для роботи з Vercel
-origins = ["*"]
+# НАЛАШТУВАННЯ БОТА
+BOT_TOKEN = "8286774536:AAFQV7Z__of6UdWVeNTYKuFDI9UrwMWTG-o" #  токен від BotFather
+WEB_APP_URL = "https://gym-telegram-app.vercel.app/"   #  посилання на Vercel
+# 
 
+# --- CORS ---
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -45,29 +49,58 @@ class BuyRequest(BaseModel):
     days: int
     sessions: int
 
-# --- API ROUTES ---
+# --- ТЕЛЕГРАМ WEBHOOK (ЦЕ НОВЕ!) ---
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    data = await request.json()
+    
+    # Перевіряємо, чи це повідомлення
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
 
+        # Якщо натиснули /start
+        if text == "/start":
+            send_welcome_message(chat_id)
+            
+    return {"status": "ok"}
+
+def send_welcome_message(chat_id):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": "Привіт! Тисни кнопку знизу, щоб відкрити зал 💪👇",
+        "reply_markup": {
+            "keyboard": [[
+                {
+                    "text": "💪 ВІДКРИТИ ЗАЛ",
+                    "web_app": { "url": WEB_APP_URL }
+                }
+            ]],
+            "resize_keyboard": True,
+            "is_persistent": True
+        }
+    }
+    requests.post(url, json=payload)
+
+# --- API ROUTES ---
 @app.get("/")
 def read_root():
-    return {"message": "Вітаю! Сервер працює."}
+    return {"message": "Server is running!"}
 
 @app.get("/api/profile/{user_id}")
 def get_profile(user_id: str):
     if user_id not in users_db:
         users_db[user_id] = create_new_user(user_id)
-    
     user = users_db[user_id]
-    
     if user["subscription"]["active"]:
         expiry = datetime.strptime(user["subscription"]["expiry_date"], "%d.%m.%Y")
         today = datetime.now()
-        
         if today > expiry:
             user["subscription"]["active"] = False
         else:
             delta = expiry - today
             user["subscription"]["days_left"] = delta.days + 1
-
     return user
 
 @app.post("/api/buy")
@@ -75,11 +108,9 @@ def buy_subscription(request: BuyRequest):
     user_id = request.user_id
     if user_id not in users_db:
         users_db[user_id] = create_new_user(user_id)
-        
     today = datetime.now()
     expiry = today + timedelta(days=request.days)
     is_unlimited = request.sessions > 100
-
     users_db[user_id]["subscription"] = {
         "active": True,
         "title": request.title,
@@ -90,7 +121,6 @@ def buy_subscription(request: BuyRequest):
         "sessions_total": request.sessions,
         "is_unlimited": is_unlimited
     }
-    
     return {"message": "Успішно!", "profile": users_db[user_id]}
 
 # --- ДАНІ ---
