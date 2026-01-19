@@ -1,21 +1,21 @@
 // src/screens/SubscriptionsScreen.jsx
 import React, { useState, useEffect } from 'react';
 import { FaMapMarkerAlt, FaPhoneAlt } from 'react-icons/fa';
-import WebApp from '@twa-dev/sdk'; // Для вібрації
+import WebApp from '@twa-dev/sdk'; 
+
+// 👇 Посилання на сервер
+const API_URL = "https://gym-telegram-app.onrender.com";
 
 const SubscriptionsScreen = ({ userId }) => {
   const [selectedGymId, setSelectedGymId] = useState('polubotka');
   const [gymData, setGymData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Функція купівлі
   const handleBuy = async (priceItem) => {
-    // Телеграмна вібрація при натисканні
     WebApp.HapticFeedback.impactOccurred('light');
 
     if (!confirm(`Купити "${priceItem.title}"?`)) return;
 
-    // Логіка визначення типу абонемента
     let sessionsCount = 30; 
     if (priceItem.title.includes("12") || priceItem.title.includes("Ранковий")) {
       sessionsCount = 12;
@@ -32,11 +32,11 @@ const SubscriptionsScreen = ({ userId }) => {
     if (priceItem.title.includes("Разове")) daysCount = 1;
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/buy', {
+      const response = await fetch(`${API_URL}/api/buy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: userId, // Використовуємо ID з Телеграму
+          user_id: userId,
           title: priceItem.title,
           days: daysCount,
           sessions: sessionsCount
@@ -44,7 +44,7 @@ const SubscriptionsScreen = ({ userId }) => {
       });
       
       if (response.ok) {
-        WebApp.HapticFeedback.notificationOccurred('success'); // Вібрація успіху
+        WebApp.HapticFeedback.notificationOccurred('success'); 
         alert("Успішно! ✅");
         window.location.reload(); 
       }
@@ -55,7 +55,7 @@ const SubscriptionsScreen = ({ userId }) => {
   };
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/gyms')
+    fetch(`${API_URL}/api/gyms`)
       .then(res => res.json())
       .then(data => {
         setGymData(data);
@@ -134,5 +134,4 @@ const SubscriptionsScreen = ({ userId }) => {
     </div>
   );
 };
-
 export default SubscriptionsScreen;
