@@ -1,19 +1,13 @@
 # backend/main.py
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import Dict
-import requests # <--- Нова бібліотека
 
 app = FastAPI()
 
-# НАЛАШТУВАННЯ БОТА
-BOT_TOKEN = "8286774536:AAFQV7Z__of6UdWVeNTYKuFDI9UrwMWTG-o" #  токен від BotFather
-WEB_APP_URL = "https://gym-telegram-app.vercel.app/"   #  посилання на Vercel
-# 
-
-# --- CORS ---
+# --- CORS (ДОЗВОЛЯЄМО ВСІМ) ---
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -23,117 +17,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- БАЗА ДАНИХ ---
-users_db: Dict[str, dict] = {}
+# --- 💾 ТВОЯ ВІРТУАЛЬНА БАЗА КЛІЄНТІВ ---
+# ТЕСТОВІ КОДИ: 1001, 1002, 7777
+VALID_CARDS = {
+    "1001": { "name": "Олег (VIP)", "days": 365, "sessions": 9999, "role": "vip" },
+    "1002": { "name": "Марія К.", "days": 30, "sessions": 12, "role": "standart" },
+    "7777": { "name": "Адмін", "days": 9999, "sessions": 9999, "role": "admin" }
+}
 
-def create_new_user(user_id: str):
+# Тимчасова пам'ять для активних сесій
+users_sessions: Dict[str, dict] = {}
+
+class LoginRequest(BaseModel):
+    code: str
+
+# --- ЛОГІКА ВХОДУ ---
+@app.post("/api/login")
+def login_user(req: LoginRequest):
+    code = req.code.strip()
+    
+    if code in VALID_CARDS:
+        card_data = VALID_CARDS[code]
+        user_id = f"user_{code}" 
+        
+        # Розрахунок дати закінчення
+        expiry = datetime.now() + timedelta(days=card_data["days"])
+        
+        # Створюємо профіль
+        user_profile = {
+            "id": user_id,
+            "name": card_data["name"],
+            "avatar": f"https://i.pravatar.cc/150?u={user_id}",
+            "subscription": {
+                "active": True,
+                "title": f"Абонемент {code}",
+                "expiry_date": expiry.strftime("%d.%m.%Y"),
+                "days_left": card_data["days"],
+                "days_total": card_data["days"],
+                "sessions_left": card_data["sessions"],
+                "sessions_total": card_data["sessions"],
+                "is_unlimited": card_data["sessions"] > 100
+            }
+        }
+        
+        users_sessions[user_id] = user_profile
+        return {"status": "success", "user": user_profile}
+    
+    else:
+        raise HTTPException(status_code=404, detail="Невірний код картки")
+
+# --- ОТРИМАННЯ ПРОФІЛЮ ---
+@app.get("/api/profile/{user_id}")
+def get_profile(user_id: str):
+    if user_id in users_sessions:
+        return users_sessions[user_id]
+    
+    # Якщо ID не знайдено або це гість
     return {
-        "id": user_id,
-        "name": f"Користувач {user_id}", 
-        "avatar": "https://i.pravatar.cc/150?img=68",
+        "id": "guest",
+        "name": "Гість",
+        "avatar": "https://cdn-icons-png.flaticon.com/512/149/149071.png",
         "subscription": {
             "active": False,
             "title": None,
-            "expiry_date": None,
             "days_left": 0,
-            "days_total": 0,
-            "sessions_left": 0,
-            "sessions_total": 0,
-            "is_unlimited": False
+            "sessions_left": 0
         }
     }
 
-class BuyRequest(BaseModel):
-    user_id: str
-    title: str
-    days: int
-    sessions: int
-
-# --- ТЕЛЕГРАМ WEBHOOK (ЦЕ НОВЕ!) ---
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    data = await request.json()
-    
-    # Перевіряємо, чи це повідомлення
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
-
-        # Якщо натиснули /start
-        if text == "/start":
-            send_welcome_message(chat_id)
-            
-    return {"status": "ok"}
-
-def send_welcome_message(chat_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": "Привіт! Тисни кнопку знизу, щоб відкрити зал 💪👇",
-        "reply_markup": {
-            "keyboard": [[
-                {
-                    "text": "💪 ВІДКРИТИ ЗАЛ",
-                    "web_app": { "url": WEB_APP_URL }
-                }
-            ]],
-            "resize_keyboard": True,
-            "is_persistent": True
-        }
-    }
-    requests.post(url, json=payload)
-
-# --- API ROUTES ---
-@app.get("/")
-def read_root():
-    return {"message": "Server is running!"}
-
-@app.get("/api/profile/{user_id}")
-def get_profile(user_id: str):
-    if user_id not in users_db:
-        users_db[user_id] = create_new_user(user_id)
-    user = users_db[user_id]
-    if user["subscription"]["active"]:
-        expiry = datetime.strptime(user["subscription"]["expiry_date"], "%d.%m.%Y")
-        today = datetime.now()
-        if today > expiry:
-            user["subscription"]["active"] = False
-        else:
-            delta = expiry - today
-            user["subscription"]["days_left"] = delta.days + 1
-    return user
-
-@app.post("/api/buy")
-def buy_subscription(request: BuyRequest):
-    user_id = request.user_id
-    if user_id not in users_db:
-        users_db[user_id] = create_new_user(user_id)
-    today = datetime.now()
-    expiry = today + timedelta(days=request.days)
-    is_unlimited = request.sessions > 100
-    users_db[user_id]["subscription"] = {
-        "active": True,
-        "title": request.title,
-        "expiry_date": expiry.strftime("%d.%m.%Y"),
-        "days_left": request.days,
-        "days_total": request.days,
-        "sessions_left": request.sessions,
-        "sessions_total": request.sessions,
-        "is_unlimited": is_unlimited
-    }
-    return {"message": "Успішно!", "profile": users_db[user_id]}
-
-# --- ДАНІ ---
-fake_gym_data = {
-    "polubotka": { "id": "polubotka", "name": "KOLIZEY I", "address": "вул. П.Полуботка, 31", "phone": "097 131 00 39", "prices": [ { "title": "Ранковий", "desc": "12 тренувань/міс, вхід до 13:00", "local": 950, "network": 1300 }, { "title": "12 Тренувань", "desc": "Без обмежень в часі дня", "local": 1150, "network": 1650 }, { "title": "Безлім", "desc": "Місячний абонемент", "local": 1300, "network": 1800 }, { "title": "Вихідний", "desc": "Абонемент вихідного дня", "local": 800, "network": 1150 }, { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 3450, "network": 4850 }, { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 6250, "network": 8550 }, { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 9500, "network": 13400 }, { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }, { "title": "Тренерський", "desc": "Для співпраці з тренерами", "local": 3500, "network": 9000 }, ] },
-    "myrnoho": { "id": "myrnoho", "name": "KOLIZEY II", "address": "вул. П.Мирного, 24Г", "phone": "098 661 77 15", "prices": [ { "title": "Ранковий", "desc": "12 тренувань/міс, вхід до 13:00", "local": 1150, "network": 1300 }, { "title": "12 Тренувань", "desc": "Без обмежень в часі дня", "local": 1450, "network": 1650 }, { "title": "Безлім", "desc": "Місячний абонемент", "local": 1600, "network": 1800 }, { "title": "Вихідний", "desc": "Абонемент вихідного дня", "local": 1000, "network": 1150 }, { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 4300, "network": 4850 }, { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 7800, "network": 8550 }, { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 11800, "network": 13400 }, { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }, { "title": "Тренерський", "desc": "Для співпраці з тренерами", "local": 6000, "network": 9000 }, ] }
-}
-fake_trainers = [{ "id": 1, "name": "Роман", "role": "Bodybuilding", "gym": "polubotka", "img": "/trainers/roman.jpg", "instagram": "roman_kishchukk", "phone": None }, { "id": 2, "name": "Даша", "role": "Fitness / Stretching", "gym": "polubotka", "img": "/trainers/dasha.jpg", "instagram": "shabanitsa.fit", "phone": None }, { "id": 3, "name": "Назар", "role": "Powerlifting", "gym": "polubotka", "img": "/trainers/nazar.jpg", "instagram": "nazarich.", "phone": None }, { "id": 4, "name": "Христина", "role": "Rehabilitation", "gym": "polubotka", "img": "/trainers/khrystyna.jpg", "instagram": "kristinkakachmar", "phone": None }, { "id": 5, "name": "Стас", "role": "Senior Coach", "gym": "polubotka", "img": "/trainers/stas.jpg", "instagram": "s.korchynskyi", "phone": None }, { "id": 101, "name": "Тренер Мирного 1", "role": "Gym Instructor", "gym": "myrnoho", "img": "https://i.pravatar.cc/300?img=12", "instagram": "kolizey.lviv", "phone": "0980000000" }, { "id": 102, "name": "Тренер Мирного 2", "role": "Crossfit", "gym": "myrnoho", "img": "https://i.pravatar.cc/300?img=33", "instagram": "kolizey.lviv", "phone": "0980000000" }]
-
-@app.get("/api/trainers")
-def get_trainers(): return fake_trainers
+# --- ДОДАТКОВІ ДАНІ ---
+fake_gym_data = { "polubotka": { "id": "polubotka", "name": "KOLIZEY", "address": "вул. П.Полуботка, 31", "phone": "0971310039", "prices": [{"title":"Разове","local":300,"network":None}] } } 
 @app.get("/api/gyms")
-def get_gym_data(): return fake_gym_data
+def get_gyms(): return fake_gym_data
+@app.get("/api/trainers")
+def get_trainers(): return []
 
 if __name__ == "__main__":
     import uvicorn
