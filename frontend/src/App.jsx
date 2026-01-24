@@ -3,16 +3,15 @@ import React, { useState, useEffect } from 'react';
 import './App.css'; 
 import WebApp from '@twa-dev/sdk'; 
 
-// Екрани
+// Імпорт екранів (перевір, щоб файли лежали в папці screens!)
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
 
-// Іконки
+// Іконки (Тільки безпечні з 'fa')
 import { FiUser, FiUsers, FiMap } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
-import { FaRunning, FaDumbbell } from 'react-icons/fa';
-import { MdSelfImprovement } from 'react-icons/md';
+import { FaRunning, FaDumbbell, FaLeaf } from 'react-icons/fa'; // Замінив MdSelfImprovement на FaLeaf
 
 const API_URL = "https://gym-telegram-app.onrender.com";
 
@@ -29,10 +28,17 @@ const Header = ({ name, avatar }) => (
 );
 
 const ProfileScreen = ({ user, onBuyClick }) => {
-  if (!user) return <div style={{textAlign:'center', marginTop:50, color:'#666'}}>Завантаження...</div>;
+  // ЗАХИСТ ВІД ПОМИЛОК: Якщо юзера немає або немає підписки, показуємо заглушку, а не помилку
+  if (!user || !user.subscription) return (
+    <div className="cyber-card" style={{textAlign: 'center', padding: 20}}>
+        <h3>Помилка даних 😕</h3>
+        <p style={{color: '#666'}}>Не вдалося завантажити профіль.</p>
+        <button onClick={() => window.location.reload()} className="buy-btn-style">Оновити</button>
+    </div>
+  );
+
   const { subscription } = user;
   
-  // Розрахунок смужки
   const percent = subscription.days_total > 0 
     ? Math.min(100, Math.max(0, (subscription.days_left / subscription.days_total) * 100))
     : 0;
@@ -40,26 +46,23 @@ const ProfileScreen = ({ user, onBuyClick }) => {
   return (
     <div style={{padding: '0 5px'}}>
       
-      {/* 🔴 КАРТКА АБОНЕМЕНТА */}
-      {subscription && subscription.active ? (
+      {/* КАРТКА АБОНЕМЕНТА */}
+      {subscription.active ? (
         <div className="cyber-card">
           <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>
             {subscription.title || "GOLD Абонемент"}
           </h2>
 
-          {/* Смужка прогресу */}
           <div className="progress-track">
              <div className="progress-fill" style={{ width: `${percent}%` }}>
-                {/* Іконка бігуна всередині смужки */}
                 <FaRunning color="white" size={18} style={{transform: 'scaleX(-1)'}} /> 
              </div>
           </div>
 
           <p style={{color: '#aaa', fontSize: 14, margin: 0}}>
-             Залишилось: <span style={{color: '#fff', fontWeight: 'bold'}}>{subscription.days_left} занять (до {subscription.expiry_date})</span>
+             Залишилось: <span style={{color: '#fff', fontWeight: 'bold'}}>{subscription.days_left} занять</span>
           </p>
           
-          {/* Декор: крапки внизу картки як на фото */}
           <div style={{display:'flex', justifyContent:'center', gap:5, marginTop: 15}}>
              <div style={{width: 6, height: 6, borderRadius: '50%', background: '#ff1f1f'}}></div>
              <div style={{width: 6, height: 6, borderRadius: '50%', background: '#333'}}></div>
@@ -73,10 +76,9 @@ const ProfileScreen = ({ user, onBuyClick }) => {
         </div>
       )}
 
-      {/* 🔴 СЕКЦІЯ "МОЇ ЗАПИСИ" */}
+      {/* МОЇ ЗАПИСИ */}
       <h3 style={{fontSize: 18, margin: '30px 0 15px 0', color: '#fff', fontWeight: '700'}}>Мої записи</h3>
       
-      {/* Запис 1 */}
       <div className="booking-card">
          <div style={{
            width: 44, height: 44, background: '#222', borderRadius: '12px', 
@@ -91,13 +93,12 @@ const ProfileScreen = ({ user, onBuyClick }) => {
          <button className="cancel-btn">Скасувати</button>
       </div>
 
-      {/* Запис 2 */}
       <div className="booking-card">
          <div style={{
            width: 44, height: 44, background: '#222', borderRadius: '12px', 
            display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15
          }}>
-            <MdSelfImprovement color="#fff" size={22}/>
+            <FaLeaf color="#fff" size={20}/>
          </div>
          <div style={{flex: 1}}>
             <h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Йога (Розтяжка)</h4>
@@ -110,25 +111,40 @@ const ProfileScreen = ({ user, onBuyClick }) => {
   );
 };
 
-// --- ГОЛОВНИЙ ДОДАТОК ---
 const App = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [user, setUser] = useState(null);
   const [userID, setUserID] = useState(null);
+  const [error, setError] = useState(null); // Стан для помилки
 
   useEffect(() => {
-    if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
-    const tgUser = WebApp.initDataUnsafe?.user;
-    const currentId = tgUser ? tgUser.id.toString() : "test_user_img_ref_v2";
-    setUserID(currentId);
+    try {
+        if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
+        const tgUser = WebApp.initDataUnsafe?.user;
+        const currentId = tgUser ? tgUser.id.toString() : "test_user_repair_v1";
+        setUserID(currentId);
+    } catch (e) {
+        console.error("Telegram init error", e);
+    }
   }, []);
 
   useEffect(() => {
     if (userID) {
       fetch(`${API_URL}/api/profile/${userID}`)
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error("Server Error"); // Якщо 404 - кидаємо помилку
+            return res.json();
+        })
         .then(data => setUser(data))
-        .catch(err => console.error(err));
+        .catch(err => {
+            console.error(err);
+            // Якщо сервер впав, створюємо фейкового юзера, щоб додаток працював
+            setUser({
+                name: "Гість (Офлайн)",
+                avatar: "https://i.pravatar.cc/150",
+                subscription: { active: false, days_left: 0, days_total: 1 }
+            });
+        });
     }
   }, [userID]);
 
