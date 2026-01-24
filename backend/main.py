@@ -7,7 +7,6 @@ from typing import Dict
 
 app = FastAPI()
 
-# --- CORS ---
 origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -17,17 +16,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- ПРОСТА БАЗА ДАНИХ ---
 users_db: Dict[str, dict] = {}
 
-# Функція створення нового юзера (автоматично)
+# Автоматичне створення юзера
 def create_default_user(user_id: str):
     return {
         "id": user_id,
-        "name": f"Клієнт {user_id[-4:]}" if len(user_id) > 4 else "Тестовий Клієнт",
-        "avatar": "https://i.pravatar.cc/150?img=12",
+        "name": "Олександр", # Можеш змінити ім'я за замовчуванням
+        "avatar": "https://i.pravatar.cc/150?img=68",
         "subscription": {
-            "active": False, # По замовчуванню немає абонемента
+            "active": False,
             "title": None,
             "days_left": 0,
             "sessions_left": 0
@@ -40,33 +38,15 @@ class BuyRequest(BaseModel):
     days: int
     sessions: int
 
-# --- API ---
-
 @app.get("/")
 def read_root():
-    return {"message": "Gym Server Running (Dev Mode)"}
+    return {"message": "Gym Server Full Mode"}
 
 @app.get("/api/profile/{user_id}")
 def get_profile(user_id: str):
-    # Якщо юзера немає - створюємо його автоматично
     if user_id not in users_db:
         users_db[user_id] = create_default_user(user_id)
-    
-    user = users_db[user_id]
-    
-    # Перевірка терміну дії (якщо є абонемент)
-    if user["subscription"]["active"]:
-        try:
-            expiry = datetime.strptime(user["subscription"]["expiry_date"], "%d.%m.%Y")
-            if datetime.now() > expiry:
-                user["subscription"]["active"] = False
-            else:
-                delta = expiry - datetime.now()
-                user["subscription"]["days_left"] = delta.days + 1
-        except:
-            pass # Ігноруємо помилки дат в режимі розробки
-            
-    return user
+    return users_db[user_id]
 
 @app.post("/api/buy")
 def buy_subscription(request: BuyRequest):
@@ -90,17 +70,44 @@ def buy_subscription(request: BuyRequest):
     }
     return {"message": "OK", "user": users_db[user_id]}
 
-# --- ДАНІ ---
-fake_gym_data = { 
-    "polubotka": { 
-        "id": "polubotka", "name": "KOLIZEY I", "address": "вул. П.Полуботка, 31", "phone": "0971310039", 
-        "prices": [ 
-            { "title": "Ранковий", "desc": "12 тренувань/міс", "local": 950, "network": 1300 }, 
+# 👇👇👇 ПОВНА БАЗА ЦІН ТУТ 👇👇👇
+fake_gym_data = {
+    "polubotka": {
+        "id": "polubotka",
+        "name": "KOLIZEY I",
+        "address": "вул. П.Полуботка, 31",
+        "phone": "097 131 00 39",
+        "prices": [
+            { "title": "Ранковий", "desc": "12 тренувань/міс (до 17:00)", "local": 950, "network": 1300 },
+            { "title": "12 Тренувань", "desc": "Без обмежень в часі", "local": 1150, "network": 1650 },
             { "title": "Безлім", "desc": "Місячний абонемент", "local": 1300, "network": 1800 },
+            { "title": "Студент/Школяр", "desc": "Місячний безліміт", "local": 1100, "network": None },
+            { "title": "Вихідний", "desc": "Тільки Сб та Нд", "local": 800, "network": 1150 },
+            { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 3450, "network": 4850 },
+            { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 6250, "network": 8550 },
+            { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 9500, "network": 13400 },
             { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }
-        ] 
-    } 
-} 
+        ]
+    },
+    "myrnoho": {
+        "id": "myrnoho",
+        "name": "KOLIZEY II",
+        "address": "вул. П.Мирного, 24Г",
+        "phone": "098 661 77 15",
+        "prices": [
+            { "title": "Ранковий", "desc": "12 тренувань/міс (до 17:00)", "local": 1150, "network": 1300 },
+            { "title": "12 Тренувань", "desc": "Без обмежень в часі", "local": 1450, "network": 1650 },
+            { "title": "Безлім", "desc": "Місячний абонемент", "local": 1600, "network": 1800 },
+            { "title": "Студент/Школяр", "desc": "Місячний безліміт", "local": 1300, "network": None },
+            { "title": "Вихідний", "desc": "Тільки Сб та Нд", "local": 1000, "network": 1150 },
+            { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 4300, "network": 4850 },
+            { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 7800, "network": 8550 },
+            { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 11800, "network": 13400 },
+            { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }
+        ]
+    }
+}
+
 @app.get("/api/gyms")
 def get_gyms(): return fake_gym_data
 @app.get("/api/trainers")

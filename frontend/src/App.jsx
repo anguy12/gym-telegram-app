@@ -9,70 +9,108 @@ import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
 
 // Іконки
-import { FiUser, FiUsers, FiMap } from 'react-icons/fi';
+import { FiUser, FiUsers, FiMap, FiCheckCircle } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
-import { FaClock, FaDumbbell } from 'react-icons/fa';
+import { FaClock, FaFire } from 'react-icons/fa';
 
-// 👇 ТВОЯ АДРЕСА
 const API_URL = "https://gym-telegram-app.onrender.com";
 
+// --- КОМПОНЕНТИ ---
 const Header = ({ name, avatar }) => (
   <div className="header">
-    <div className="avatar-container">
+    <div className="avatar-container" style={{border: '2px solid var(--accent-red)', padding: 2}}>
       <img src={avatar || "https://i.pravatar.cc/150"} alt="Avatar" className="avatar-img" />
     </div>
     <div className="header-text">
-      <h1 className="greeting" style={{margin:0}}>Привіт, {name}!</h1>
+      <span style={{fontSize: '13px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px'}}>Club Member</span>
+      <h1 className="greeting" style={{margin:0, fontSize: '24px'}}>{name}</h1>
     </div>
   </div>
 );
 
-const ProfileScreen = ({ user }) => {
-  if (!user) return <div style={{textAlign:'center', marginTop:50}}>Завантаження...</div>;
+const ProfileScreen = ({ user, onBuyClick }) => {
+  if (!user) return <div style={{textAlign:'center', marginTop:50}}>Завантаження профілю...</div>;
   const { subscription } = user;
   
+  // Розрахунок прогресу для краси
+  const percent = subscription.days_total > 0 
+    ? Math.min(100, Math.max(0, (subscription.days_left / subscription.days_total) * 100))
+    : 0;
+
   return (
     <section className="section-margin">
       {subscription && subscription.active ? (
-        <div className="sub-card glow-effect">
-            <div className="sub-card-content">
-                <h2 className="sub-title">{subscription.title}</h2>
-                <div className="progress-label-row">
-                  <span style={{fontSize: '12px', color: '#aaa'}}><FaClock style={{marginRight:5}}/>Термін дії</span>
-                  <span style={{fontSize: '12px', color: '#fff'}}>{subscription.days_left} днів</span>
+        // ✅ ЯКЩО АБОНЕМЕНТ Є
+        <div className="sub-card glow-effect" style={{position: 'relative', overflow: 'hidden'}}>
+            <div style={{position: 'absolute', top: -10, right: -10, opacity: 0.1}}>
+               <FaFire size={120} color="white"/>
+            </div>
+            
+            <div className="sub-card-content" style={{position: 'relative', zIndex: 2}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
+                   <span style={{background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: 6, fontSize: 12, color: '#4CC9F0'}}>
+                     АКТИВНИЙ
+                   </span>
+                   <span style={{fontSize: 12, color: '#ddd'}}>до {subscription.expiry_date}</span>
                 </div>
-                <div className="progress-container" style={{height: '8px', marginTop: 10}}>
-                   <div className="progress-bar-fill" style={{ width: '80%', background: 'var(--accent-red)' }} />
+
+                <h2 className="sub-title" style={{fontSize: '28px', marginBottom: 5}}>{subscription.title}</h2>
+                <p style={{color: '#ccc', fontSize: 14, marginBottom: 20}}>
+                   Залишилось: <strong style={{color: '#fff'}}>{subscription.days_left} днів</strong>
+                </p>
+
+                {/* Смужка прогресу */}
+                <div className="progress-container" style={{height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: 10}}>
+                   <div className="progress-bar-fill" style={{ width: `${percent}%`, background: 'var(--accent-red)', height: '100%', borderRadius: 10, boxShadow: '0 0 10px var(--accent-red)' }} />
+                </div>
+                
+                <div style={{marginTop: 15, textAlign: 'right', fontSize: 12, color: '#aaa'}}>
+                   Ваш ID: {user.id}
                 </div>
             </div>
         </div>
       ) : (
-        <div className="sub-card" style={{border: '1px dashed #555', background: 'transparent', textAlign: 'center', padding: 20}}>
-            <h3 style={{color:'#888', margin:0}}>Немає абонемента 😢</h3>
-            <p style={{fontSize: 13, color: '#666'}}>Перейдіть у вкладку "Ціни", щоб купити.</p>
+        // ❌ ЯКЩО АБОНЕМЕНТА НЕМАЄ
+        <div className="sub-card" style={{border: '1px dashed #444', background: 'linear-gradient(145deg, #1a1a1a, #222)', textAlign: 'center', padding: '30px 20px'}}>
+            <div style={{background: '#333', width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px'}}>
+               <TbTag size={30} color="#666"/>
+            </div>
+            <h3 style={{color:'#fff', margin:'0 0 10px 0'}}>Абонемент відсутній</h3>
+            <p style={{fontSize: 13, color: '#888', marginBottom: 20}}>У вас немає активних тренувань. Саме час це виправити!</p>
+            <button onClick={onBuyClick} className="buy-btn-style" style={{width: '100%'}}>
+               Вибрати абонемент
+            </button>
         </div>
       )}
+
+      {/* Швидка статистика (фейкова для краси) */}
+      <div style={{display: 'flex', gap: 10, marginTop: 20}}>
+         <div style={{flex: 1, background: '#1e1e1e', padding: 15, borderRadius: 16, textAlign: 'center'}}>
+            <h3 style={{margin: 0, color: 'var(--accent-red)', fontSize: 24}}>0</h3>
+            <span style={{fontSize: 11, color: '#666'}}>Відвідувань</span>
+         </div>
+         <div style={{flex: 1, background: '#1e1e1e', padding: 15, borderRadius: 16, textAlign: 'center'}}>
+            <h3 style={{margin: 0, color: '#4CC9F0', fontSize: 24}}>0</h3>
+            <span style={{fontSize: 11, color: '#666'}}>Занять</span>
+         </div>
+      </div>
     </section>
   );
 };
 
+// --- MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [user, setUser] = useState(null);
   const [userID, setUserID] = useState(null);
 
-  // 1. Автоматичний вхід (без паролів)
   useEffect(() => {
     if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
-    
-    // Беремо ID з телеграму АБО ставимо тестовий ID для браузера
     const tgUser = WebApp.initDataUnsafe?.user;
-    const currentId = tgUser ? tgUser.id.toString() : "test_user_1";
-    
+    const currentId = tgUser ? tgUser.id.toString() : "test_user_v2";
     setUserID(currentId);
   }, []);
 
-  // 2. Завантаження даних
   useEffect(() => {
     if (userID) {
       fetch(`${API_URL}/api/profile/${userID}`)
@@ -84,7 +122,7 @@ const App = () => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 0: return <ProfileScreen user={user} />;
+      case 0: return <ProfileScreen user={user} onBuyClick={() => setActiveTab(1)} />;
       case 1: return <SubscriptionsScreen userId={userID} />;
       case 2: return <TrainersScreen />;
       case 3: return <MapScreen />;
