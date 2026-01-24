@@ -10,12 +10,10 @@ const SubscriptionsScreen = ({ userId }) => {
   const [gymData, setGymData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Функція покупки
   const handleBuy = async (priceItem) => {
-    WebApp.HapticFeedback.impactOccurred('light');
-    if (!confirm(`Купити "${priceItem.title}"?`)) return;
+    WebApp.HapticFeedback.impactOccurred('medium');
+    if (!confirm(`Придбати "${priceItem.title}"?`)) return;
 
-    // Проста логіка днів/занять для тесту
     let sessionsCount = 30; 
     let daysCount = 30;
     if (priceItem.title.includes("Безлім") || priceItem.title.includes("Річний")) sessionsCount = 9999;
@@ -35,11 +33,11 @@ const SubscriptionsScreen = ({ userId }) => {
       
       if (response.ok) {
         WebApp.HapticFeedback.notificationOccurred('success'); 
-        alert("Успішно! ✅");
+        alert("Оплата пройшла успішно! Ласкаво просимо ✅");
         window.location.reload(); 
       }
     } catch (error) {
-      console.error("Помилка:", error);
+      console.error(error);
     }
   };
 
@@ -50,27 +48,29 @@ const SubscriptionsScreen = ({ userId }) => {
       .catch(err => { console.error(err); setLoading(false); });
   }, []);
 
-  if (loading) return <div style={{textAlign: 'center', marginTop: 50}}>Завантаження цін...</div>;
+  if (loading) return <div style={{textAlign: 'center', marginTop: 50, color: '#666'}}>Завантаження цін...</div>;
   if (!gymData) return <div style={{textAlign: 'center', marginTop: 50}}>Помилка даних :(</div>;
 
   const currentGym = gymData[selectedGymId];
 
-  // Компонент картки ціни
+  // Картка ціни (Преміум стиль)
   const PriceCard = ({ item }) => (
-    <div className="price-card" onClick={() => handleBuy(item)} 
+    <div onClick={() => handleBuy(item)} 
          style={{
-           background: '#1c1c1e', marginBottom: 10, padding: 15, borderRadius: 12,
+           background: 'linear-gradient(145deg, #1e1e1e, #141414)', // Легкий градієнт
+           marginBottom: 12, padding: '16px', borderRadius: 16,
            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-           border: '1px solid #333'
+           border: '1px solid #2a2a2a', cursor: 'pointer',
+           boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
          }}>
        <div>
-          <h3 style={{margin: '0 0 5px 0', fontSize: 16, color: '#fff'}}>{item.title}</h3>
+          <h3 style={{margin: '0 0 4px 0', fontSize: 16, color: '#fff', fontWeight: '600'}}>{item.title}</h3>
           <p style={{margin: 0, fontSize: 12, color: '#888'}}>{item.desc}</p>
        </div>
        <div style={{textAlign: 'right'}}>
          <div style={{
-           background: '#E50914', color: 'white', padding: '6px 12px', 
-           borderRadius: 8, fontWeight: 'bold', fontSize: 14
+           background: 'rgba(255, 51, 51, 0.1)', color: '#ff3333', padding: '8px 14px', 
+           borderRadius: 12, fontWeight: '700', fontSize: 15, border: '1px solid rgba(255, 51, 51, 0.2)'
          }}>
            {item.local} ₴
          </div>
@@ -80,50 +80,40 @@ const SubscriptionsScreen = ({ userId }) => {
 
   return (
     <div className="subscriptions-screen">
-      <h2 style={{fontSize: 24, marginBottom: 20}}>Абонементи</h2>
+      <h2 style={{fontSize: 26, marginBottom: 20, fontWeight: '700'}}>Оберіть план</h2>
       
-      {/* ПЕРЕМИКАЧ ЗАЛІВ */}
+      {/* СТИЛЬНИЙ ПЕРЕМИКАЧ (КАПСУЛА) */}
       <div style={{
-        display: 'flex', background: '#1c1c1e', padding: 4, borderRadius: 12, marginBottom: 20
+        background: '#1a1a1a', padding: 5, borderRadius: 16, marginBottom: 25,
+        display: 'flex', border: '1px solid #333'
       }}>
         <button 
           onClick={() => setSelectedGymId('polubotka')}
           style={{
-            flex: 1, padding: '10px 0', border: 'none', borderRadius: 10,
-            background: selectedGymId === 'polubotka' ? '#E50914' : 'transparent',
+            flex: 1, padding: '12px 0', border: 'none', borderRadius: 12,
+            background: selectedGymId === 'polubotka' ? '#333' : 'transparent',
             color: selectedGymId === 'polubotka' ? '#fff' : '#666',
-            fontWeight: 'bold', transition: 'all 0.3s'
+            fontWeight: '600', fontSize: 13, transition: 'all 0.2s',
+            boxShadow: selectedGymId === 'polubotka' ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
           }}
         >
-          вул. П. Полуботка
+          Полуботка
         </button>
         <button 
           onClick={() => setSelectedGymId('myrnoho')}
           style={{
-            flex: 1, padding: '10px 0', border: 'none', borderRadius: 10,
-            background: selectedGymId === 'myrnoho' ? '#E50914' : 'transparent',
+            flex: 1, padding: '12px 0', border: 'none', borderRadius: 12,
+            background: selectedGymId === 'myrnoho' ? '#333' : 'transparent',
             color: selectedGymId === 'myrnoho' ? '#fff' : '#666',
-            fontWeight: 'bold', transition: 'all 0.3s'
+            fontWeight: '600', fontSize: 13, transition: 'all 0.2s',
+            boxShadow: selectedGymId === 'myrnoho' ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
           }}
         >
-          вул. П. Мирного
+          П. Мирного
         </button>
       </div>
 
-      {/* ІНФО ПРО ЗАЛ */}
-      <div style={{marginBottom: 20, padding: 15, background: '#111', borderRadius: 12, border: '1px dashed #333'}}>
-        <div style={{display: 'flex', alignItems: 'center', marginBottom: 8, color: '#aaa'}}>
-          <FaMapMarkerAlt style={{marginRight: 10, color: '#E50914'}} />
-          <span>{currentGym.address}</span>
-        </div>
-        <div style={{display: 'flex', alignItems: 'center', color: '#aaa'}}>
-          <FaPhoneAlt style={{marginRight: 10, color: '#E50914'}} />
-          <a href={`tel:${currentGym.phone}`} style={{color: '#aaa', textDecoration: 'none'}}>{currentGym.phone}</a>
-        </div>
-      </div>
-
-      {/* СПИСОК ЦІН */}
-      <div className="prices-list" style={{paddingBottom: 20}}>
+      <div style={{paddingBottom: 20}}>
         {currentGym.prices.map((item, index) => <PriceCard key={index} item={item} />)}
       </div>
     </div>
