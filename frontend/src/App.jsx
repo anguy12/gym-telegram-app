@@ -29,15 +29,12 @@ const ProfileScreen = ({ user, onBuyClick }) => {
   if (!user || !user.subscription) return <div style={{textAlign:'center', marginTop:50, color:'#666'}}>Завантаження...</div>;
   const { subscription } = user;
 
-  // --- ЛОГІКА РОЗУМНОЇ СМУЖКИ ---
   const isSessionBased = subscription.type === "sessions";
   
-  // Що показуємо: дні чи заняття?
   const total = isSessionBased ? subscription.sessions_total : subscription.days_total;
   const current = isSessionBased ? subscription.sessions_left : subscription.days_left;
   const label = isSessionBased ? "занять" : "днів";
 
-  // Відсоток заповнення
   const percent = total > 0 ? Math.min(100, Math.max(0, (current / total) * 100)) : 0;
 
   return (
@@ -51,7 +48,6 @@ const ProfileScreen = ({ user, onBuyClick }) => {
                 <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>
                     {subscription.title}
                 </h2>
-                {/* 👇 ТУТ МИ ПИШЕМО НАЗВУ ЗАЛУ */}
                 <div style={{fontSize: 12, color: 'var(--neon-red)', display:'flex', alignItems:'center', marginBottom: 15}}>
                     <FaMapMarkerAlt size={10} style={{marginRight:5}}/>
                     {subscription.gym_name || "Мережевий"}
@@ -79,11 +75,7 @@ const ProfileScreen = ({ user, onBuyClick }) => {
              </div>
           )}
           
-          {/* Декор */}
-          <div style={{display:'flex', justifyContent:'center', gap:5, marginTop: 15}}>
-             <div style={{width: 6, height: 6, borderRadius: '50%', background: '#ff1f1f'}}></div>
-             <div style={{width: 6, height: 6, borderRadius: '50%', background: '#333'}}></div>
-          </div>
+          {/* ТУТ БУЛИ КРАПКИ, Я ЇХ ВИДАЛИВ */}
         </div>
       ) : (
         <div className="cyber-card" style={{textAlign: 'center', padding: '40px 20px'}}>
@@ -118,7 +110,7 @@ const App = () => {
     try {
         if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
         const tgUser = WebApp.initDataUnsafe?.user;
-        const currentId = tgUser ? tgUser.id.toString() : "test_user_smart_sub_v1";
+        const currentId = tgUser ? tgUser.id.toString() : "test_user_v5_fix";
         setUserID(currentId);
     } catch (e) {}
   }, []);

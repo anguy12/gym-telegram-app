@@ -17,25 +17,28 @@ const SubscriptionsScreen = ({ userId }) => {
     const price = type === 'network' ? priceItem.network : priceItem.local;
     const title = type === 'network' ? `${priceItem.title} (Мережа)` : priceItem.title;
 
-    if (!confirm(`Придбати "${title}" за ${price} грн?`)) return;
+    if (!confirm(`Купити "${title}" за ${price} грн?`)) return;
 
-    // --- ЛОГІКА ДНІВ ТА ЗАНЯТЬ (ОНОВЛЕНА) ---
+    // --- ЛОГІКА ДНІВ ТА ЗАНЯТЬ (ВИПРАВЛЕНА) ---
     let sessionsCount = 999; // За замовчуванням безліміт занять
     let daysCount = 30;      // За замовчуванням 30 днів
 
+    // Переводимо назву у верхній регістр для перевірки (щоб "РІЧНИЙ" і "Річний" працювали однаково)
+    const upperTitle = priceItem.title.toUpperCase();
+
     // 1. Абонементи на кількість занять
-    if (priceItem.title.includes("12") || priceItem.title.includes("Ранковий")) {
+    if (upperTitle.includes("12") || upperTitle.includes("РАНКОВИЙ")) {
         sessionsCount = 12;
     }
-    if (priceItem.title.includes("Разове")) { 
+    if (upperTitle.includes("РАЗОВЕ")) { 
         sessionsCount = 1; 
         daysCount = 1; 
     }
 
-    // 2. Довгострокові абонементи (Дні)
-    if (priceItem.title.includes("3 Місяці")) daysCount = 90;
-    if (priceItem.title.includes("Піврічний")) daysCount = 180;
-    if (priceItem.title.includes("Річний")) daysCount = 365;
+    // 2. Довгострокові абонементи (Дні) - ТЕПЕР ПРАЦЮЄ КОРЕКТНО
+    if (upperTitle.includes("3 МІСЯЦІ")) daysCount = 90;
+    if (upperTitle.includes("ПІВРІЧНИЙ")) daysCount = 180;
+    if (upperTitle.includes("РІЧНИЙ") || upperTitle.includes("РІК")) daysCount = 365;
 
     try {
       const response = await fetch(`${API_URL}/api/buy`, {
