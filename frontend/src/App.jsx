@@ -3,15 +3,13 @@ import React, { useState, useEffect } from 'react';
 import './App.css'; 
 import WebApp from '@twa-dev/sdk'; 
 
-// Імпорт екранів (перевір, щоб файли лежали в папці screens!)
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
 
-// Іконки (Тільки безпечні з 'fa')
 import { FiUser, FiUsers, FiMap } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
-import { FaRunning, FaDumbbell, FaLeaf } from 'react-icons/fa'; // Замінив MdSelfImprovement на FaLeaf
+import { FaRunning, FaDumbbell, FaLeaf, FaMapMarkerAlt } from 'react-icons/fa';
 
 const API_URL = "https://gym-telegram-app.onrender.com";
 
@@ -28,20 +26,19 @@ const Header = ({ name, avatar }) => (
 );
 
 const ProfileScreen = ({ user, onBuyClick }) => {
-  // ЗАХИСТ ВІД ПОМИЛОК: Якщо юзера немає або немає підписки, показуємо заглушку, а не помилку
-  if (!user || !user.subscription) return (
-    <div className="cyber-card" style={{textAlign: 'center', padding: 20}}>
-        <h3>Помилка даних 😕</h3>
-        <p style={{color: '#666'}}>Не вдалося завантажити профіль.</p>
-        <button onClick={() => window.location.reload()} className="buy-btn-style">Оновити</button>
-    </div>
-  );
-
+  if (!user || !user.subscription) return <div style={{textAlign:'center', marginTop:50, color:'#666'}}>Завантаження...</div>;
   const { subscription } = user;
+
+  // --- ЛОГІКА РОЗУМНОЇ СМУЖКИ ---
+  const isSessionBased = subscription.type === "sessions";
   
-  const percent = subscription.days_total > 0 
-    ? Math.min(100, Math.max(0, (subscription.days_left / subscription.days_total) * 100))
-    : 0;
+  // Що показуємо: дні чи заняття?
+  const total = isSessionBased ? subscription.sessions_total : subscription.days_total;
+  const current = isSessionBased ? subscription.sessions_left : subscription.days_left;
+  const label = isSessionBased ? "занять" : "днів";
+
+  // Відсоток заповнення
+  const percent = total > 0 ? Math.min(100, Math.max(0, (current / total) * 100)) : 0;
 
   return (
     <div style={{padding: '0 5px'}}>
@@ -49,23 +46,42 @@ const ProfileScreen = ({ user, onBuyClick }) => {
       {/* КАРТКА АБОНЕМЕНТА */}
       {subscription.active ? (
         <div className="cyber-card">
-          <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>
-            {subscription.title || "GOLD Абонемент"}
-          </h2>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+             <div>
+                <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>
+                    {subscription.title}
+                </h2>
+                {/* 👇 ТУТ МИ ПИШЕМО НАЗВУ ЗАЛУ */}
+                <div style={{fontSize: 12, color: 'var(--neon-red)', display:'flex', alignItems:'center', marginBottom: 15}}>
+                    <FaMapMarkerAlt size={10} style={{marginRight:5}}/>
+                    {subscription.gym_name || "Мережевий"}
+                </div>
+             </div>
+          </div>
 
+          {/* Смужка прогресу */}
           <div className="progress-track">
              <div className="progress-fill" style={{ width: `${percent}%` }}>
                 <FaRunning color="white" size={18} style={{transform: 'scaleX(-1)'}} /> 
              </div>
           </div>
 
-          <p style={{color: '#aaa', fontSize: 14, margin: 0}}>
-             Залишилось: <span style={{color: '#fff', fontWeight: 'bold'}}>{subscription.days_left} занять</span>
-          </p>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#aaa'}}>
+             <span>Залишилось:</span>
+             <span style={{color: '#fff', fontWeight: 'bold'}}>
+                {current} з {total} {label}
+             </span>
+          </div>
+
+          {!isSessionBased && (
+             <div style={{textAlign: 'right', fontSize: 11, color: '#666', marginTop: 4}}>
+                до {subscription.expiry_date}
+             </div>
+          )}
           
+          {/* Декор */}
           <div style={{display:'flex', justifyContent:'center', gap:5, marginTop: 15}}>
              <div style={{width: 6, height: 6, borderRadius: '50%', background: '#ff1f1f'}}></div>
-             <div style={{width: 6, height: 6, borderRadius: '50%', background: '#333'}}></div>
              <div style={{width: 6, height: 6, borderRadius: '50%', background: '#333'}}></div>
           </div>
         </div>
@@ -76,37 +92,19 @@ const ProfileScreen = ({ user, onBuyClick }) => {
         </div>
       )}
 
-      {/* МОЇ ЗАПИСИ */}
+      {/* ЗАПИСИ */}
       <h3 style={{fontSize: 18, margin: '30px 0 15px 0', color: '#fff', fontWeight: '700'}}>Мої записи</h3>
       
       <div className="booking-card">
-         <div style={{
-           width: 44, height: 44, background: '#222', borderRadius: '12px', 
-           display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15
-         }}>
+         <div style={{width: 44, height: 44, background: '#222', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15}}>
             <FaDumbbell color="#fff" size={20}/>
          </div>
          <div style={{flex: 1}}>
-            <h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Функціональний тренінг</h4>
-            <p style={{margin: 0, fontSize: 12, color: '#888'}}>Сьогодні, 18:00 • Тренер: Іван П.</p>
+            <h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Функціонал</h4>
+            <p style={{margin: 0, fontSize: 12, color: '#888'}}>Сьогодні, 18:00</p>
          </div>
          <button className="cancel-btn">Скасувати</button>
       </div>
-
-      <div className="booking-card">
-         <div style={{
-           width: 44, height: 44, background: '#222', borderRadius: '12px', 
-           display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15
-         }}>
-            <FaLeaf color="#fff" size={20}/>
-         </div>
-         <div style={{flex: 1}}>
-            <h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Йога (Розтяжка)</h4>
-            <p style={{margin: 0, fontSize: 12, color: '#888'}}>Завтра, 09:30 • Тренер: Олена М.</p>
-         </div>
-         <button className="cancel-btn">Скасувати</button>
-      </div>
-
     </div>
   );
 };
@@ -115,35 +113,24 @@ const App = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [user, setUser] = useState(null);
   const [userID, setUserID] = useState(null);
-  const [error, setError] = useState(null); // Стан для помилки
 
   useEffect(() => {
     try {
         if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
         const tgUser = WebApp.initDataUnsafe?.user;
-        const currentId = tgUser ? tgUser.id.toString() : "test_user_repair_v1";
+        const currentId = tgUser ? tgUser.id.toString() : "test_user_smart_sub_v1";
         setUserID(currentId);
-    } catch (e) {
-        console.error("Telegram init error", e);
-    }
+    } catch (e) {}
   }, []);
 
   useEffect(() => {
     if (userID) {
       fetch(`${API_URL}/api/profile/${userID}`)
-        .then(res => {
-            if (!res.ok) throw new Error("Server Error"); // Якщо 404 - кидаємо помилку
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => setUser(data))
         .catch(err => {
             console.error(err);
-            // Якщо сервер впав, створюємо фейкового юзера, щоб додаток працював
-            setUser({
-                name: "Гість (Офлайн)",
-                avatar: "https://i.pravatar.cc/150",
-                subscription: { active: false, days_left: 0, days_total: 1 }
-            });
+            setUser({ name: "Гість", avatar: "", subscription: { active: false } });
         });
     }
   }, [userID]);
@@ -165,21 +152,11 @@ const App = () => {
           <Header name={user.name} avatar={user.avatar} />
         </div>
       )}
-
-      <div className="content-scrollable" style={{padding: '0 20px'}}>
-        {renderContent()}
-      </div>
-
+      <div className="content-scrollable" style={{padding: '0 20px'}}>{renderContent()}</div>
       <div className="bottom-nav">
-        {[
-            {icon: FiUser, l: 'Профіль'}, 
-            {icon: TbTag, l: 'Абонементи'}, 
-            {icon: FiUsers, l: 'Тренери'}, 
-            {icon: FiMap, l: 'Завантаженість'}
-        ].map((item, i) => (
+        {[ {icon: FiUser, l: 'Профіль'}, {icon: TbTag, l: 'Абонементи'}, {icon: FiUsers, l: 'Тренери'}, {icon: FiMap, l: 'Інфо'} ].map((item, i) => (
             <div key={i} className={`nav-item ${activeTab===i?'active':''}`} onClick={()=>setActiveTab(i)}>
-               <item.icon size={24} />
-               <span className="nav-label">{item.l}</span>
+               <item.icon size={24} /> <span className="nav-label">{item.l}</span>
             </div>
         ))}
       </div>

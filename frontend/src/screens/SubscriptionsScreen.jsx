@@ -10,13 +10,25 @@ const SubscriptionsScreen = ({ userId }) => {
   const [gymData, setGymData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const handleBuy = async (priceItem) => {
+  // type = 'local' або 'network'
+  const handleBuy = async (priceItem, type) => {
     WebApp.HapticFeedback.impactOccurred('medium');
-    if (!confirm(`Придбати "${priceItem.title}"?`)) return;
+    
+    const price = type === 'network' ? priceItem.network : priceItem.local;
+    const title = type === 'network' ? `${priceItem.title} (Мережа)` : priceItem.title;
 
-    let sessionsCount = 30; 
+    if (!confirm(`Придбати "${title}" за ${price} грн?`)) return;
+
+    // Логіка визначення типу абонемента
+    let sessionsCount = 30; // Умовно для безліміту
     let daysCount = 30;
-    if (priceItem.title.includes("Безлім") || priceItem.title.includes("Річний")) sessionsCount = 9999;
+    
+    // Якщо в назві є цифра 12 або 8, то це кількість занять
+    if (priceItem.title.includes("12")) sessionsCount = 12;
+    if (priceItem.title.includes("8")) sessionsCount = 8;
+    
+    // Якщо це безліміт - ставимо багато сесій
+    if (priceItem.title.includes("Безлім") || priceItem.title.includes("Річний")) sessionsCount = 999;
     if (priceItem.title.includes("Річний")) daysCount = 365;
 
     try {
@@ -25,15 +37,17 @@ const SubscriptionsScreen = ({ userId }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          title: priceItem.title,
+          title: title,
           days: daysCount,
-          sessions: sessionsCount
+          sessions: sessionsCount,
+          gym_id: selectedGymId,
+          is_network: type === 'network'
         })
       });
       
       if (response.ok) {
         WebApp.HapticFeedback.notificationOccurred('success'); 
-        alert("Оплата пройшла успішно! Ласкаво просимо ✅");
+        alert("Успішно! ✅");
         window.location.reload(); 
       }
     } catch (error) {
@@ -45,72 +59,70 @@ const SubscriptionsScreen = ({ userId }) => {
     fetch(`${API_URL}/api/gyms`)
       .then(res => res.json())
       .then(data => { setGymData(data); setLoading(false); })
-      .catch(err => { console.error(err); setLoading(false); });
+      .catch(err => { setLoading(false); });
   }, []);
 
-  if (loading) return <div style={{textAlign: 'center', marginTop: 50, color: '#666'}}>Завантаження цін...</div>;
-  if (!gymData) return <div style={{textAlign: 'center', marginTop: 50}}>Помилка даних :(</div>;
+  if (loading) return <div style={{textAlign:'center', marginTop:50, color:'#666'}}>Завантаження...</div>;
+  if (!gymData) return <div style={{textAlign:'center', marginTop:50}}>Помилка</div>;
 
   const currentGym = gymData[selectedGymId];
 
-  // Картка ціни (Преміум стиль)
+  // КАРТКА ЦІНИ З ДВОМА КНОПКАМИ (Локал / Мережа)
   const PriceCard = ({ item }) => (
-    <div onClick={() => handleBuy(item)} 
-         style={{
-           background: 'linear-gradient(145deg, #1e1e1e, #141414)', // Легкий градієнт
-           marginBottom: 12, padding: '16px', borderRadius: 16,
-           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-           border: '1px solid #2a2a2a', cursor: 'pointer',
-           boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
-         }}>
-       <div>
-          <h3 style={{margin: '0 0 4px 0', fontSize: 16, color: '#fff', fontWeight: '600'}}>{item.title}</h3>
+    <div style={{
+        background: '#1a1a1a', marginBottom: 15, padding: 15, borderRadius: 16,
+        border: '1px solid #333', boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+    }}>
+       <div style={{marginBottom: 10}}>
+          <h3 style={{margin: '0 0 5px 0', fontSize: 17, color: '#fff'}}>{item.title}</h3>
           <p style={{margin: 0, fontSize: 12, color: '#888'}}>{item.desc}</p>
        </div>
-       <div style={{textAlign: 'right'}}>
-         <div style={{
-           background: 'rgba(255, 51, 51, 0.1)', color: '#ff3333', padding: '8px 14px', 
-           borderRadius: 12, fontWeight: '700', fontSize: 15, border: '1px solid rgba(255, 51, 51, 0.2)'
+
+       <div style={{display: 'flex', gap: 10}}>
+         {/* Локальна ціна */}
+         <button onClick={() => handleBuy(item, 'local')} style={{
+             flex: 1, padding: '10px', borderRadius: 10, border: '1px solid #444',
+             background: 'transparent', color: '#fff', cursor: 'pointer'
          }}>
-           {item.local} ₴
-         </div>
+            <div style={{fontSize: 10, color: '#888'}}>Цей зал</div>
+            <div style={{fontWeight: 'bold', fontSize: 14}}>{item.local} ₴</div>
+         </button>
+
+         {/* Мережева ціна (якщо є) */}
+         {item.network && (
+             <button onClick={() => handleBuy(item, 'network')} style={{
+                 flex: 1, padding: '10px', borderRadius: 10, border: 'none',
+                 background: 'var(--neon-red)', color: '#fff', cursor: 'pointer'
+             }}>
+                <div style={{fontSize: 10, color: 'rgba(255,255,255,0.8)'}}>Мережа</div>
+                <div style={{fontWeight: 'bold', fontSize: 14}}>{item.network} ₴</div>
+             </button>
+         )}
        </div>
     </div>
   );
 
   return (
     <div className="subscriptions-screen">
-      <h2 style={{fontSize: 26, marginBottom: 20, fontWeight: '700'}}>Оберіть план</h2>
+      <h2 style={{fontSize: 24, marginBottom: 20, color:'#fff'}}>Ціни клубу</h2>
       
-      {/* СТИЛЬНИЙ ПЕРЕМИКАЧ (КАПСУЛА) */}
+      {/* ПЕРЕМИКАЧ ЗАЛІВ */}
       <div style={{
-        background: '#1a1a1a', padding: 5, borderRadius: 16, marginBottom: 25,
-        display: 'flex', border: '1px solid #333'
+        background: '#1a1a1a', padding: 4, borderRadius: 14, marginBottom: 20, display: 'flex'
       }}>
-        <button 
-          onClick={() => setSelectedGymId('polubotka')}
-          style={{
-            flex: 1, padding: '12px 0', border: 'none', borderRadius: 12,
-            background: selectedGymId === 'polubotka' ? '#333' : 'transparent',
-            color: selectedGymId === 'polubotka' ? '#fff' : '#666',
-            fontWeight: '600', fontSize: 13, transition: 'all 0.2s',
-            boxShadow: selectedGymId === 'polubotka' ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
-          }}
-        >
-          Полуботка
-        </button>
-        <button 
-          onClick={() => setSelectedGymId('myrnoho')}
-          style={{
-            flex: 1, padding: '12px 0', border: 'none', borderRadius: 12,
-            background: selectedGymId === 'myrnoho' ? '#333' : 'transparent',
-            color: selectedGymId === 'myrnoho' ? '#fff' : '#666',
-            fontWeight: '600', fontSize: 13, transition: 'all 0.2s',
-            boxShadow: selectedGymId === 'myrnoho' ? '0 4px 10px rgba(0,0,0,0.3)' : 'none'
-          }}
-        >
-          П. Мирного
-        </button>
+        {['polubotka', 'myrnoho'].map(gymId => (
+             <button key={gymId}
+                onClick={() => setSelectedGymId(gymId)}
+                style={{
+                    flex: 1, padding: '10px', border: 'none', borderRadius: 10,
+                    background: selectedGymId === gymId ? '#333' : 'transparent',
+                    color: selectedGymId === gymId ? '#fff' : '#666',
+                    fontWeight: 'bold', transition: 'all 0.2s'
+                }}
+             >
+                {gymId === 'polubotka' ? 'Полуботка' : 'Мирного'}
+             </button>
+        ))}
       </div>
 
       <div style={{paddingBottom: 20}}>
