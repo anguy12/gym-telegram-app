@@ -69,13 +69,11 @@ const ProfileScreen = ({ user, onBuyClick }) => {
              </span>
           </div>
 
-          {!isSessionBased && (
-             <div style={{textAlign: 'right', fontSize: 11, color: '#666', marginTop: 4}}>
-                до {subscription.expiry_date}
-             </div>
-          )}
+          {/* 👇 ТЕПЕР ДАТА ПОКАЗУЄТЬСЯ ЗАВЖДИ (і для 12 занять теж) */}
+          <div style={{textAlign: 'right', fontSize: 11, color: '#666', marginTop: 6, borderTop: '1px solid #222', paddingTop: 6}}>
+             Діє до <span style={{color: '#888'}}>{subscription.expiry_date}</span>
+          </div>
           
-          {/* ТУТ БУЛИ КРАПКИ, Я ЇХ ВИДАЛИВ */}
         </div>
       ) : (
         <div className="cyber-card" style={{textAlign: 'center', padding: '40px 20px'}}>
@@ -110,7 +108,7 @@ const App = () => {
     try {
         if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
         const tgUser = WebApp.initDataUnsafe?.user;
-        const currentId = tgUser ? tgUser.id.toString() : "test_user_v5_fix";
+        const currentId = tgUser ? tgUser.id.toString() : "test_user_v6_date";
         setUserID(currentId);
     } catch (e) {}
   }, []);
