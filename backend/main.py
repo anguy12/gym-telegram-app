@@ -18,11 +18,10 @@ app.add_middleware(
 
 users_db: Dict[str, dict] = {}
 
-# Автоматичне створення юзера
 def create_default_user(user_id: str):
     return {
         "id": user_id,
-        "name": "Олександр", # Можеш змінити ім'я за замовчуванням
+        "name": "Олександр", 
         "avatar": "https://i.pravatar.cc/150?img=68",
         "subscription": {
             "active": False,
@@ -39,8 +38,7 @@ class BuyRequest(BaseModel):
     sessions: int
 
 @app.get("/")
-def read_root():
-    return {"message": "Gym Server Full Mode"}
+def read_root(): return {"message": "Gym Server Full"}
 
 @app.get("/api/profile/{user_id}")
 def get_profile(user_id: str):
@@ -53,11 +51,9 @@ def buy_subscription(request: BuyRequest):
     user_id = request.user_id
     if user_id not in users_db:
         users_db[user_id] = create_default_user(user_id)
-        
     today = datetime.now()
     expiry = today + timedelta(days=request.days)
     is_unlimited = request.sessions > 100
-
     users_db[user_id]["subscription"] = {
         "active": True,
         "title": request.title,
@@ -70,7 +66,7 @@ def buy_subscription(request: BuyRequest):
     }
     return {"message": "OK", "user": users_db[user_id]}
 
-# 👇👇👇 ПОВНА БАЗА ЦІН ТУТ 👇👇👇
+# 👇👇👇 ПОВНИЙ СПИСОК ЦІН (ВІДНОВЛЕНО) 👇👇👇
 fake_gym_data = {
     "polubotka": {
         "id": "polubotka",
@@ -78,15 +74,15 @@ fake_gym_data = {
         "address": "вул. П.Полуботка, 31",
         "phone": "097 131 00 39",
         "prices": [
-            { "title": "Ранковий", "desc": "12 тренувань/міс (до 17:00)", "local": 950, "network": 1300 },
+            { "title": "Ранковий", "desc": "12 тренувань/міс (вхід до 13:00)", "local": 950, "network": 1300 },
             { "title": "12 Тренувань", "desc": "Без обмежень в часі", "local": 1150, "network": 1650 },
             { "title": "Безлім", "desc": "Місячний абонемент", "local": 1300, "network": 1800 },
-            { "title": "Студент/Школяр", "desc": "Місячний безліміт", "local": 1100, "network": None },
             { "title": "Вихідний", "desc": "Тільки Сб та Нд", "local": 800, "network": 1150 },
             { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 3450, "network": 4850 },
             { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 6250, "network": 8550 },
             { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 9500, "network": 13400 },
-            { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }
+            { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None },
+            { "title": "Тренерський", "desc": "Для співпраці з тренерами", "local": 3500, "network": 9000 },
         ]
     },
     "myrnoho": {
@@ -95,15 +91,15 @@ fake_gym_data = {
         "address": "вул. П.Мирного, 24Г",
         "phone": "098 661 77 15",
         "prices": [
-            { "title": "Ранковий", "desc": "12 тренувань/міс (до 17:00)", "local": 1150, "network": 1300 },
+            { "title": "Ранковий", "desc": "12 тренувань/міс (вхід до 13:00)", "local": 1150, "network": 1300 },
             { "title": "12 Тренувань", "desc": "Без обмежень в часі", "local": 1450, "network": 1650 },
             { "title": "Безлім", "desc": "Місячний абонемент", "local": 1600, "network": 1800 },
-            { "title": "Студент/Школяр", "desc": "Місячний безліміт", "local": 1300, "network": None },
             { "title": "Вихідний", "desc": "Тільки Сб та Нд", "local": 1000, "network": 1150 },
             { "title": "3 Місяці", "desc": "Квартальний безліміт", "local": 4300, "network": 4850 },
             { "title": "Піврічний", "desc": "Безліміт на 6 місяців", "local": 7800, "network": 8550 },
             { "title": "Річний", "desc": "Безліміт на 12 місяців", "local": 11800, "network": 13400 },
-            { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None }
+            { "title": "Разове", "desc": "Одне тренування", "local": 300, "network": None },
+            { "title": "Тренерський", "desc": "Для співпраці з тренерами", "local": 6000, "network": 9000 },
         ]
     }
 }
