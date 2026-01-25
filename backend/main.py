@@ -1,8 +1,16 @@
-from fastapi import FastAPI
+# backend/main.py
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import Dict
+
+# Імпортуємо наші нові файли
+from database import SessionLocal, engine
+import models
+
+# Створюємо таблиці в базі даних (якщо їх немає)
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -14,21 +22,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-users_db: Dict[str, dict] = {}
-
-def create_default_user(user_id: str):
-    return {
-        "id": user_id,
-        "name": "Клієнт", 
-        "avatar": "https://i.pravatar.cc/150?img=68",
-        "subscription": {
-            "active": False,
-            "title": None,
-            "gym_name": None,
-            "days_left": 0,
-            "sessions_left": 0
-        }
-    }
+# Функція для отримання сесії бази даних
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class BuyRequest(BaseModel):
     user_id: str
@@ -38,24 +38,55 @@ class BuyRequest(BaseModel):
     gym_id: str
     is_network: bool
 
+# --- ЛОГІКА РОБОТИ З БАЗОЮ ---
+
 @app.get("/")
-def read_root(): return {"message": "Gym Server Fixed Prices"}
+def read_root():
+    return {"message": "Gym Server with SQLite DB 🚀"}
 
 @app.get("/api/profile/{user_id}")
-def get_profile(user_id: str):
-    if user_id not in users_db:
-        users_db[user_id] = create_default_user(user_id)
-    return users_db[user_id]
+def get_profile(user_id: str, db: Session = Depends(get_db)):
+    # Шукаємо юзера в базі
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    
+    # Якщо немає - створюємо нового
+    if not user:
+        user = models.User(id=user_id)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # Формуємо красивий JSON для фронтенду
+    return {
+        "id": user.id,
+        "name": user.name,
+        "avatar": user.avatar,
+        "subscription": {
+            "active": user.sub_active,
+            "title": user.sub_title,
+            "gym_name": user.sub_gym_name,
+            "expiry_date": user.sub_expiry_date,
+            "days_left": user.sub_days_left,
+            "days_total": user.sub_days_total,
+            "sessions_left": user.sub_sessions_left,
+            "sessions_total": user.sub_sessions_total,
+            "type": user.sub_type
+        }
+    }
 
 @app.post("/api/buy")
-def buy_subscription(request: BuyRequest):
-    user_id = request.user_id
-    if user_id not in users_db:
-        users_db[user_id] = create_default_user(user_id)
+def buy_subscription(request: BuyRequest, db: Session = Depends(get_db)):
+    # Знаходимо юзера
+    user = db.query(models.User).filter(models.User.id == request.user_id).first()
+    if not user:
+        user = models.User(id=request.user_id)
+        db.add(user)
     
+    # Розрахунок дати
     today = datetime.now()
     expiry = today + timedelta(days=request.days)
     
+    # Назва залу
     gym_label = ""
     if request.is_network:
         gym_label = "МЕРЕЖА (Всі зали)"
@@ -66,23 +97,45 @@ def buy_subscription(request: BuyRequest):
     else:
         gym_label = "Локальний"
 
-    # Логіка типу: якщо занять мало (<50), то це поштучні заняття. Інакше - дні.
     sub_type = "sessions" if request.sessions < 50 else "days"
 
-    users_db[user_id]["subscription"] = {
-        "active": True,
-        "title": request.title,
-        "gym_name": gym_label,
-        "expiry_date": expiry.strftime("%d.%m.%Y"),
-        "days_left": request.days,
-        "days_total": request.days,
-        "sessions_left": request.sessions,
-        "sessions_total": request.sessions,
-        "type": sub_type 
-    }
-    return {"message": "OK", "user": users_db[user_id]}
+    # Оновлюємо поля в Базі Даних
+    user.sub_active = True
+    user.sub_title = request.title
+    user.sub_gym_name = gym_label
+    user.sub_expiry_date = expiry.strftime("%d.%m.%Y")
+    user.sub_days_left = request.days
+    user.sub_days_total = request.days
+    user.sub_sessions_left = request.sessions
+    user.sub_sessions_total = request.sessions
+    user.sub_type = sub_type
 
-# 👇 ТОЧНА КОПІЯ З ФОТОГРАФІЙ 👇
+    # Зберігаємо зміни
+    db.commit()
+    db.refresh(user)
+
+    # Повертаємо оновлений профіль
+    return {
+        "message": "OK", 
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "avatar": user.avatar,
+            "subscription": {
+                "active": user.sub_active,
+                "title": user.sub_title,
+                "gym_name": user.sub_gym_name,
+                "expiry_date": user.sub_expiry_date,
+                "days_left": user.sub_days_left,
+                "days_total": user.sub_days_total,
+                "sessions_left": user.sub_sessions_left,
+                "sessions_total": user.sub_sessions_total,
+                "type": user.sub_type
+            }
+        }
+    }
+
+# --- ДАНІ ПРО ЗАЛИ (Ціни залишаємо як є) ---
 fake_gym_data = {
     "polubotka": {
         "id": "polubotka",

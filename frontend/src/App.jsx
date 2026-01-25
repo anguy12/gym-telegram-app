@@ -6,12 +6,16 @@ import WebApp from '@twa-dev/sdk';
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
+import AdminScreen from './screens/AdminScreen'; // Екран адміна
 
-import { FiUser, FiUsers, FiMap } from 'react-icons/fi';
+import { FiUser, FiUsers, FiMap, FiSettings } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
 import { FaRunning, FaDumbbell, FaLeaf, FaMapMarkerAlt } from 'react-icons/fa';
 
 const API_URL = "https://gym-telegram-app.onrender.com";
+
+// 👇 ТУТ Я ВСТАВИВ ТВІЙ ID
+const ADMIN_IDS = ["7696439716", "test_user_v6_date"]; 
 
 const Header = ({ name, avatar }) => (
   <div style={{display: 'flex', alignItems: 'center', marginBottom: 30, padding: '10px 5px'}}>
@@ -28,52 +32,28 @@ const Header = ({ name, avatar }) => (
 const ProfileScreen = ({ user, onBuyClick }) => {
   if (!user || !user.subscription) return <div style={{textAlign:'center', marginTop:50, color:'#666'}}>Завантаження...</div>;
   const { subscription } = user;
-
-  const isSessionBased = subscription.type === "sessions";
   
+  const isSessionBased = subscription.type === "sessions";
   const total = isSessionBased ? subscription.sessions_total : subscription.days_total;
   const current = isSessionBased ? subscription.sessions_left : subscription.days_left;
   const label = isSessionBased ? "занять" : "днів";
-
   const percent = total > 0 ? Math.min(100, Math.max(0, (current / total) * 100)) : 0;
 
   return (
     <div style={{padding: '0 5px'}}>
-      
-      {/* КАРТКА АБОНЕМЕНТА */}
       {subscription.active ? (
         <div className="cyber-card">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
              <div>
-                <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>
-                    {subscription.title}
-                </h2>
+                <h2 style={{margin: '0 0 5px 0', fontSize: 24, fontWeight: '800', letterSpacing: 0.5}}>{subscription.title}</h2>
                 <div style={{fontSize: 12, color: 'var(--neon-red)', display:'flex', alignItems:'center', marginBottom: 15}}>
-                    <FaMapMarkerAlt size={10} style={{marginRight:5}}/>
-                    {subscription.gym_name || "Мережевий"}
+                    <FaMapMarkerAlt size={10} style={{marginRight:5}}/>{subscription.gym_name || "Мережевий"}
                 </div>
              </div>
           </div>
-
-          {/* Смужка прогресу */}
-          <div className="progress-track">
-             <div className="progress-fill" style={{ width: `${percent}%` }}>
-                <FaRunning color="white" size={18} style={{transform: 'scaleX(-1)'}} /> 
-             </div>
-          </div>
-
-          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#aaa'}}>
-             <span>Залишилось:</span>
-             <span style={{color: '#fff', fontWeight: 'bold'}}>
-                {current} з {total} {label}
-             </span>
-          </div>
-
-          {/* 👇 ТЕПЕР ДАТА ПОКАЗУЄТЬСЯ ЗАВЖДИ (і для 12 занять теж) */}
-          <div style={{textAlign: 'right', fontSize: 11, color: '#666', marginTop: 6, borderTop: '1px solid #222', paddingTop: 6}}>
-             Діє до <span style={{color: '#888'}}>{subscription.expiry_date}</span>
-          </div>
-          
+          <div className="progress-track"><div className="progress-fill" style={{ width: `${percent}%` }}><FaRunning color="white" size={18} style={{transform: 'scaleX(-1)'}} /></div></div>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#aaa'}}><span>Залишилось:</span><span style={{color: '#fff', fontWeight: 'bold'}}>{current} з {total} {label}</span></div>
+          <div style={{textAlign: 'right', fontSize: 11, color: '#666', marginTop: 6, borderTop: '1px solid #222', paddingTop: 6}}>Діє до <span style={{color: '#888'}}>{subscription.expiry_date}</span></div>
         </div>
       ) : (
         <div className="cyber-card" style={{textAlign: 'center', padding: '40px 20px'}}>
@@ -81,19 +61,10 @@ const ProfileScreen = ({ user, onBuyClick }) => {
            <button onClick={onBuyClick} className="buy-btn-style">Придбати</button>
         </div>
       )}
-
-      {/* ЗАПИСИ */}
       <h3 style={{fontSize: 18, margin: '30px 0 15px 0', color: '#fff', fontWeight: '700'}}>Мої записи</h3>
-      
       <div className="booking-card">
-         <div style={{width: 44, height: 44, background: '#222', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15}}>
-            <FaDumbbell color="#fff" size={20}/>
-         </div>
-         <div style={{flex: 1}}>
-            <h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Функціонал</h4>
-            <p style={{margin: 0, fontSize: 12, color: '#888'}}>Сьогодні, 18:00</p>
-         </div>
-         <button className="cancel-btn">Скасувати</button>
+         <div style={{width: 44, height: 44, background: '#222', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 15}}><FaDumbbell color="#fff" size={20}/></div>
+         <div style={{flex: 1}}><h4 style={{margin: '0 0 4px 0', fontSize: 15, color: '#fff', fontWeight: '600'}}>Функціонал</h4><p style={{margin: 0, fontSize: 12, color: '#888'}}>Сьогодні, 18:00</p></div><button className="cancel-btn">Скасувати</button>
       </div>
     </div>
   );
@@ -108,6 +79,7 @@ const App = () => {
     try {
         if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
         const tgUser = WebApp.initDataUnsafe?.user;
+        // Беремо реальний ID або тестовий, якщо ми в браузері
         const currentId = tgUser ? tgUser.id.toString() : "test_user_v6_date";
         setUserID(currentId);
     } catch (e) {}
@@ -125,12 +97,16 @@ const App = () => {
     }
   }, [userID]);
 
+  // ПЕРЕВІРКА АДМІНА: Порівнюємо ID користувача з твоїм ID
+  const isAdmin = userID && ADMIN_IDS.includes(userID.toString());
+
   const renderContent = () => {
     switch (activeTab) {
       case 0: return <ProfileScreen user={user} onBuyClick={() => setActiveTab(1)} />;
       case 1: return <SubscriptionsScreen userId={userID} />;
       case 2: return <TrainersScreen />;
       case 3: return <MapScreen />;
+      case 4: return isAdmin ? <AdminScreen /> : <ProfileScreen user={user} />;
       default: return <ProfileScreen user={user} />;
     }
   };
@@ -143,12 +119,27 @@ const App = () => {
         </div>
       )}
       <div className="content-scrollable" style={{padding: '0 20px'}}>{renderContent()}</div>
+      
       <div className="bottom-nav">
-        {[ {icon: FiUser, l: 'Профіль'}, {icon: TbTag, l: 'Абонементи'}, {icon: FiUsers, l: 'Тренери'}, {icon: FiMap, l: 'Інфо'} ].map((item, i) => (
-            <div key={i} className={`nav-item ${activeTab===i?'active':''}`} onClick={()=>setActiveTab(i)}>
-               <item.icon size={24} /> <span className="nav-label">{item.l}</span>
+        <div className={`nav-item ${activeTab===0?'active':''}`} onClick={()=>setActiveTab(0)}>
+            <FiUser size={24} /> <span className="nav-label">Профіль</span>
+        </div>
+        <div className={`nav-item ${activeTab===1?'active':''}`} onClick={()=>setActiveTab(1)}>
+            <TbTag size={24} /> <span className="nav-label">Абонементи</span>
+        </div>
+        <div className={`nav-item ${activeTab===2?'active':''}`} onClick={()=>setActiveTab(2)}>
+            <FiUsers size={24} /> <span className="nav-label">Тренери</span>
+        </div>
+        <div className={`nav-item ${activeTab===3?'active':''}`} onClick={()=>setActiveTab(3)}>
+            <FiMap size={24} /> <span className="nav-label">Інфо</span>
+        </div>
+        
+        {/* Кнопка "Адмін" з'явиться тільки у тебе */}
+        {isAdmin && (
+            <div className={`nav-item ${activeTab===4?'active':''}`} onClick={()=>setActiveTab(4)} style={{color: 'var(--neon-red)'}}>
+                <FiSettings size={24} /> <span className="nav-label">Адмін</span>
             </div>
-        ))}
+        )}
       </div>
     </div>
   );
