@@ -17,18 +17,31 @@ const AdminScreen = () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/admin/users`);
+      
+      // Перевірка: чи успішний запит?
+      if (!res.ok) throw new Error("Помилка сервера");
+
       const data = await res.json();
-      setUsers(data);
+      
+      // ЗАХИСТ ВІД ЧОРНОГО ЕКРАНУ 🛡️
+      // Якщо сервер повернув не масив (наприклад, помилку), робимо порожній масив
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error("Отримано не масив:", data);
+        setUsers([]); 
+      }
+      
       setLoading(false);
     } catch (e) {
-      alert("Помилка завантаження бази");
+      console.error(e);
+      // alert("Не вдалося завантажити список"); // Можна розкоментувати для налагодження
+      setUsers([]);
       setLoading(false);
     }
   };
 
-  // Функція редагування (додати дні, списати заняття, видати абонемент)
   const handleUpdate = async (userId, action, amount = 0) => {
-    // Для видалення питаємо підтвердження
     if (action === "deactivate" && !confirm("Анулювати абонемент?")) return;
     
     try {
@@ -38,7 +51,6 @@ const AdminScreen = () => {
         body: JSON.stringify({ user_id: userId, action, amount })
       });
       if(res.ok) {
-        // Оновлюємо список після успішної дії
         fetchUsers(); 
       }
     } catch (e) {
@@ -46,10 +58,11 @@ const AdminScreen = () => {
     }
   };
 
-  // Фільтруємо список по пошуку
-  const filteredUsers = users.filter(u => 
-     u.name.toLowerCase().includes(search.toLowerCase()) || 
-     u.id.includes(search)
+  // Фільтруємо список по пошуку (тепер безпечно)
+  const safeUsers = Array.isArray(users) ? users : [];
+  const filteredUsers = safeUsers.filter(u => 
+     (u.name && u.name.toLowerCase().includes(search.toLowerCase())) || 
+     (u.id && u.id.includes(search))
   );
 
   return (
@@ -73,16 +86,18 @@ const AdminScreen = () => {
 
       {loading ? <p style={{textAlign:'center', color:'#666'}}>Завантаження...</p> : (
         <div style={{display: 'flex', flexDirection: 'column', gap: 15}}>
+           {filteredUsers.length === 0 && <p style={{textAlign:'center', color:'#444'}}>Список порожній або помилка завантаження</p>}
+           
            {filteredUsers.map(user => (
-             <div key={user.id} className="cyber-card" style={{padding: 15, border: user.subscription.active ? '1px solid var(--neon-red)' : '1px solid #333'}}>
+             <div key={user.id} className="cyber-card" style={{padding: 15, border: user.subscription?.active ? '1px solid var(--neon-red)' : '1px solid #333'}}>
                 
                 <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 10}}>
                    <div>
-                     <div style={{fontWeight: 'bold', fontSize: 16, color: '#fff'}}>{user.name}</div>
+                     <div style={{fontWeight: 'bold', fontSize: 16, color: '#fff'}}>{user.name || "Без імені"}</div>
                      <div style={{fontSize: 10, color: '#666'}}>ID: {user.id}</div>
                    </div>
                    <div style={{textAlign: 'right'}}>
-                      {user.subscription.active 
+                      {user.subscription?.active 
                         ? <span style={{color: 'var(--neon-red)', fontWeight: 'bold'}}>АКТИВНИЙ</span>
                         : <span style={{color: '#666'}}>Немає підписки</span>
                       }
@@ -90,7 +105,7 @@ const AdminScreen = () => {
                 </div>
 
                 {/* Інфо про підписку */}
-                {user.subscription.active && (
+                {user.subscription?.active && (
                    <div style={{background: '#111', padding: 10, borderRadius: 8, fontSize: 12, color: '#aaa', marginBottom: 15}}>
                       <div style={{color: '#fff', fontWeight: 'bold'}}>{user.subscription.title}</div>
                       <div>Залишилось: <b style={{color: '#fff'}}>{user.subscription.type === 'sessions' ? user.subscription.sessions_left : user.subscription.days_left}</b> {user.subscription.type === 'sessions' ? 'занять' : 'днів'}</div>
@@ -110,7 +125,7 @@ const AdminScreen = () => {
                    </button>
                 </div>
 
-                {/* 👇 ШВИДКА ВИДАЧА (ТЕПЕР ВОНА ТУТ Є) */}
+                {/* ШВИДКА ВИДАЧА */}
                 <div style={{borderTop: '1px solid #333', paddingTop: 10}}>
                     <div style={{fontSize: 10, color: '#666', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1}}>Швидка видача:</div>
                     <div style={{display: 'flex', gap: 8}}>
