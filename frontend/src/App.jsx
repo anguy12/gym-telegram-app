@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import './App.css'; 
 import WebApp from '@twa-dev/sdk'; 
@@ -6,7 +5,7 @@ import WebApp from '@twa-dev/sdk';
 import SubscriptionsScreen from './screens/SubscriptionsScreen';
 import TrainersScreen from './screens/TrainersScreen';
 import MapScreen from './screens/MapScreen';
-import AdminScreen from './screens/AdminScreen'; // Екран адміна
+import AdminScreen from './screens/AdminScreen';
 
 import { FiUser, FiUsers, FiMap, FiSettings } from 'react-icons/fi';
 import { TbTag } from 'react-icons/tb';
@@ -14,8 +13,8 @@ import { FaRunning, FaDumbbell, FaLeaf, FaMapMarkerAlt } from 'react-icons/fa';
 
 const API_URL = "https://gym-telegram-app.onrender.com";
 
-// 👇 ТУТ Я ВСТАВИВ ТВІЙ ID
-const ADMIN_IDS = ["7696439716", "test_user_v6_date"]; 
+// 👇 ТІЛЬКИ ТВІЙ ID (Тестового юзера видалено)
+const ADMIN_IDS = ["7696439716"]; 
 
 const Header = ({ name, avatar }) => (
   <div style={{display: 'flex', alignItems: 'center', marginBottom: 30, padding: '10px 5px'}}>
@@ -79,7 +78,8 @@ const App = () => {
     try {
         if (WebApp.initData) { WebApp.ready(); WebApp.expand(); }
         const tgUser = WebApp.initDataUnsafe?.user;
-        // Беремо реальний ID або тестовий, якщо ми в браузері
+        // Беремо реальний ID, якщо є. Якщо немає (браузер) - буде null або "test_user..."
+        // Але оскільки "test_user..." видалено з ADMIN_IDS, адмінку він не побачить.
         const currentId = tgUser ? tgUser.id.toString() : "test_user_v6_date";
         setUserID(currentId);
     } catch (e) {}
@@ -97,7 +97,7 @@ const App = () => {
     }
   }, [userID]);
 
-  // ПЕРЕВІРКА АДМІНА: Порівнюємо ID користувача з твоїм ID
+  // ПЕРЕВІРКА АДМІНА: Тільки ID зі списку ADMIN_IDS бачить адмінку
   const isAdmin = userID && ADMIN_IDS.includes(userID.toString());
 
   const renderContent = () => {
@@ -134,7 +134,7 @@ const App = () => {
             <FiMap size={24} /> <span className="nav-label">Інфо</span>
         </div>
         
-        {/* Кнопка "Адмін" з'явиться тільки у тебе */}
+        {/* Кнопка "Адмін" з'явиться ТІЛЬКИ у тебе (ID 7696439716) */}
         {isAdmin && (
             <div className={`nav-item ${activeTab===4?'active':''}`} onClick={()=>setActiveTab(4)} style={{color: 'var(--neon-red)'}}>
                 <FiSettings size={24} /> <span className="nav-label">Адмін</span>
