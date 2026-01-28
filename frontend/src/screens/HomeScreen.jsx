@@ -30,27 +30,26 @@ const HomeScreen = ({ onAdminClick }) => {
   
   if (active) {
       if (sub.type === 'sessions') {
-          // ЛОГІКА ДЛЯ ЗАНЯТЬ (Ігноруємо дні для смужки)
-          const total = sub.sessions_total || 12; // Скільки було куплено
-          const left = sub.sessions_left || 0;    // Скільки залишилось
+          // ЛОГІКА ДЛЯ ЗАНЯТЬ
+          const total = sub.sessions_total || 12;
+          const left = sub.sessions_left || 0;
           progressPercent = (left / total) * 100;
           progressText = `${left} із ${total} занять`;
       } else {
-          // ЛОГІКА ДЛЯ БЕЗЛІМІТУ (Дні)
+          // ЛОГІКА ДЛЯ БЕЗЛІМІТУ
           const total = sub.days_total || 30;
           const left = sub.days_left || 0;
           progressPercent = (left / total) * 100;
           progressText = `${left} днів`;
       }
       
-      // Обмеження 0-100%
       progressPercent = Math.min(100, Math.max(0, progressPercent));
   }
 
   return (
     <div className="app-wrapper" style={{background: '#000', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'Inter, sans-serif'}}>
       
-      {/* ХЕДЕР */}
+      {/* ХЕДЕР (З ID) */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 24}}>
         <div style={{display:'flex', alignItems:'center', gap: 12}}>
            {user.avatar ? 
@@ -59,6 +58,10 @@ const HomeScreen = ({ onAdminClick }) => {
            }
            <div>
                <div style={{fontSize: 20, fontWeight: 700}}>Привіт, {user.name}!</div>
+               {/* 👇 ОСЬ ТУТ МИ ДОДАЛИ ID 👇 */}
+               <div style={{fontSize: 11, color: '#666', marginTop: 3, fontFamily: 'monospace'}}>
+                  ID: {user.id}
+               </div>
            </div>
         </div>
         <div onClick={onAdminClick} style={{cursor:'pointer', padding: 10}}>
@@ -90,16 +93,14 @@ const HomeScreen = ({ onAdminClick }) => {
              )}
          </div>
 
-         {/* 🔥 СМУЖКА + ЛІЧИЛЬНИКИ */}
+         {/* СМУЖКА + ЛІЧИЛЬНИКИ */}
          {active && (
            <div>
-              {/* Верхній рядок: Цифри залишку */}
               <div style={{display:'flex', justifyContent:'space-between', marginBottom: 8, fontSize: 13, fontWeight: 600}}>
                   <span style={{color: '#fff'}}>Залишок</span>
                   <span style={{color: '#ff0000'}}>{progressText}</span>
               </div>
 
-              {/* Сама смужка */}
               <div style={{height: 10, background: '#333', borderRadius: 6, overflow: 'hidden', position: 'relative'}}>
                   <div style={{
                       width: `${progressPercent}%`, 
@@ -111,7 +112,6 @@ const HomeScreen = ({ onAdminClick }) => {
                   }}></div>
               </div>
 
-              {/* Нижній рядок: Дата закінчення */}
               <div style={{textAlign: 'right', marginTop: 8, fontSize: 12, color: '#666'}}>
                   Діє до <span style={{color: '#fff'}}>{sub.expiry_date}</span>
               </div>
