@@ -5,11 +5,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-# Імпортуємо наші нові файли
+# Імпортуємо наші файли
 from database import SessionLocal, engine
 import models
 
-# Створюємо таблиці в базі даних (якщо їх немає)
+# Створюємо таблиці в базі даних
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -30,6 +30,8 @@ def get_db():
     finally:
         db.close()
 
+# --- МОДЕЛІ ДАНИХ (Pydantic) ---
+
 class BuyRequest(BaseModel):
     user_id: str
     title: str
@@ -38,29 +40,25 @@ class BuyRequest(BaseModel):
     gym_id: str
     is_network: bool
 
-# --- ЛОГІКА РОБОТИ З БАЗОЮ ---
+# 🔥 НОВА МОДЕЛЬ: Для повного редагування адміном
+class FullUpdateReq(BaseModel):
+    user_id: str
+    name: str
+    sessions: int
+    days: int
+    is_active: bool
+    is_blocked: bool
+    gym_name: str
+    sub_title: str
+    expiry_date: str
 
-@app.get("/")
-def read_root():
-    return {"message": "Gym Server with SQLite DB 🚀"}
-
-@app.get("/api/profile/{user_id}")
-def get_profile(user_id: str, db: Session = Depends(get_db)):
-    # Шукаємо юзера в базі
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    
-    # Якщо немає - створюємо нового
-    if not user:
-        user = models.User(id=user_id)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    
-    # Формуємо красивий JSON для фронтенду
+# --- HELPER: Щоб не писати один і той самий JSON 10 разів ---
+def user_to_json(user):
     return {
         "id": user.id,
         "name": user.name,
         "avatar": user.avatar,
+        "is_blocked": user.is_blocked, # Додали статус блокування
         "subscription": {
             "active": user.sub_active,
             "title": user.sub_title,
@@ -74,19 +72,38 @@ def get_profile(user_id: str, db: Session = Depends(get_db)):
         }
     }
 
+# --- ЛОГІКА РОБОТИ З БАЗОЮ ---
+
+@app.get("/")
+def read_root():
+    return {"message": "Gym Server with Admin Panel 🚀"}
+
+# 1. ОТРИМАННЯ ПРОФІЛЮ (Оновлено)
+@app.get("/api/profile/{user_id}")
+def get_profile(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    
+    # Реєстрація нового
+    if not user:
+        # Створюємо з коротким ім'ям, щоб адмін бачив ID
+        user = models.User(id=user_id, name=f"Клієнт {user_id[-4:]}")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    return user_to_json(user)
+
+# 2. ПОКУПКА АБОНЕМЕНТА (Залишили як було)
 @app.post("/api/buy")
 def buy_subscription(request: BuyRequest, db: Session = Depends(get_db)):
-    # Знаходимо юзера
     user = db.query(models.User).filter(models.User.id == request.user_id).first()
     if not user:
         user = models.User(id=request.user_id)
         db.add(user)
     
-    # Розрахунок дати
     today = datetime.now()
     expiry = today + timedelta(days=request.days)
     
-    # Назва залу
     gym_label = ""
     if request.is_network:
         gym_label = "МЕРЕЖА (Всі зали)"
@@ -99,7 +116,6 @@ def buy_subscription(request: BuyRequest, db: Session = Depends(get_db)):
 
     sub_type = "sessions" if request.sessions < 50 else "days"
 
-    # Оновлюємо поля в Базі Даних
     user.sub_active = True
     user.sub_title = request.title
     user.sub_gym_name = gym_label
@@ -109,33 +125,44 @@ def buy_subscription(request: BuyRequest, db: Session = Depends(get_db)):
     user.sub_sessions_left = request.sessions
     user.sub_sessions_total = request.sessions
     user.sub_type = sub_type
+    # При покупці розблоковуємо, якщо був бан (опціонально)
+    user.is_blocked = False 
 
-    # Зберігаємо зміни
     db.commit()
     db.refresh(user)
 
-    # Повертаємо оновлений профіль
-    return {
-        "message": "OK", 
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "avatar": user.avatar,
-            "subscription": {
-                "active": user.sub_active,
-                "title": user.sub_title,
-                "gym_name": user.sub_gym_name,
-                "expiry_date": user.sub_expiry_date,
-                "days_left": user.sub_days_left,
-                "days_total": user.sub_days_total,
-                "sessions_left": user.sub_sessions_left,
-                "sessions_total": user.sub_sessions_total,
-                "type": user.sub_type
-            }
-        }
-    }
+    return {"message": "OK", "user": user_to_json(user)}
 
-# --- ДАНІ ПРО ЗАЛИ (Ціни залишаємо як є) ---
+# 🔥 3. АДМІН: ОТРИМАТИ ВСІХ ЛЮДЕЙ
+@app.get("/api/users")
+def get_all_users(db: Session = Depends(get_db)):
+    # Повертаємо список всіх юзерів для пошуку
+    users = db.query(models.User).all()
+    # Перетворюємо кожного в JSON
+    return [user_to_json(u) for u in users]
+
+# 🔥 4. АДМІН: РЕДАГУВАННЯ / БАН
+@app.post("/api/admin/edit_user")
+def edit_user(req: FullUpdateReq, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == req.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Переписуємо всі поля (Сила Адміна)
+    user.name = req.name
+    user.sub_sessions_left = req.sessions
+    user.sub_days_left = req.days
+    user.sub_active = req.is_active
+    user.is_blocked = req.is_blocked # <-- Головне поле бану
+    user.sub_gym_name = req.gym_name
+    user.sub_title = req.sub_title
+    user.sub_expiry_date = req.expiry_date
+
+    db.commit()
+    db.refresh(user)
+    return {"message": "Saved", "user": user_to_json(user)}
+
+# --- ДАНІ ПРО ЗАЛИ ---
 fake_gym_data = {
     "polubotka": {
         "id": "polubotka",
