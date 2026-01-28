@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaUserEdit, FaSave, FaArrowLeft, FaBan, FaSync, FaTelegramPlane } from 'react-icons/fa';
+import { FaSearch, FaUserEdit, FaSave, FaArrowLeft, FaBan, FaSync, FaTelegramPlane, FaTrash } from 'react-icons/fa';
 
 const API_URL = "https://gym-telegram-app.onrender.com";
 
@@ -63,6 +63,30 @@ const AdminScreen = ({ onBack }) => {
     }
   };
 
+  // 🔥 3. ФУНКЦІЯ ВИДАЛЕННЯ
+  const handleDelete = async () => {
+      if (!editingUser) return;
+      
+      const confirmDelete = window.confirm(`Ви точно хочете ВИДАЛИТИ користувача ${editingUser.name}? Цю дію не можна скасувати!`);
+      if (!confirmDelete) return;
+
+      try {
+          const res = await fetch(`${API_URL}/api/admin/delete_user/${editingUser.id}`, {
+              method: 'DELETE'
+          });
+
+          if (res.ok) {
+              alert("🗑️ Користувача видалено!");
+              setEditingUser(null);
+              fetchUsers();
+          } else {
+              alert("Помилка видалення");
+          }
+      } catch (e) {
+          alert("Помилка з'єднання");
+      }
+  };
+
   const filteredUsers = users.filter(u => 
     (u.name && u.name.toLowerCase().includes(search.toLowerCase())) || 
     (u.id && u.id.includes(search)) ||
@@ -86,11 +110,19 @@ const AdminScreen = ({ onBack }) => {
 
            <div style={{background: '#1a1a1a', padding: 20, borderRadius: 20, border: '1px solid #333'}}>
                
-               {/* 🔥 КНОПКА "НАПИСАТИ В TELEGRAM" */}
+               {/* Інфо про юзера (Аватар + Telegram) */}
                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20}}>
-                   <div>
-                       <div style={{fontSize:12, color:'#666'}}>ID: {editingUser.id}</div>
-                       {editingUser.username && <div style={{fontSize:12, color:'#0088cc'}}>@{editingUser.username}</div>}
+                   <div style={{display:'flex', gap:12, alignItems:'center'}}>
+                       {/* Аватарка */}
+                       {editingUser.avatar ? 
+                         <img src={editingUser.avatar} style={{width:50, height:50, borderRadius:'50%', objectFit:'cover'}} alt="avatar"/> :
+                         <div style={{width:50, height:50, borderRadius:'50%', background:'#333'}}></div>
+                       }
+                       
+                       <div>
+                           <div style={{fontSize:12, color:'#666'}}>ID: {editingUser.id}</div>
+                           {editingUser.username && <div style={{fontSize:12, color:'#0088cc'}}>@{editingUser.username}</div>}
+                       </div>
                    </div>
                    
                    <a href={tgLink} target="_blank" rel="noreferrer" 
@@ -151,15 +183,20 @@ const AdminScreen = ({ onBack }) => {
                    </button>
                </div>
 
-               <button onClick={handleSave} style={{width:'100%', padding:16, background:'#22c55e', border:'none', borderRadius:12, fontSize:16, fontWeight:'800', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:10}}>
-                   <FaSave/> ЗБЕРЕГТИ
+               <button onClick={handleSave} style={{width:'100%', padding:16, background:'#22c55e', border:'none', borderRadius:12, fontSize:16, fontWeight:'800', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:10, marginBottom: 20}}>
+                   <FaSave/> ЗБЕРЕГТИ ЗМІНИ
+               </button>
+
+               {/* 🔥 КНОПКА ВИДАЛЕННЯ */}
+               <button onClick={handleDelete} style={{width:'100%', padding:12, background:'transparent', border:'1px solid #ef4444', color: '#ef4444', borderRadius:12, fontSize:14, fontWeight:'600', cursor:'pointer', display:'flex', justifyContent:'center', alignItems:'center', gap:10}}>
+                   <FaTrash/> ВИДАЛИТИ КЛІЄНТА З БАЗИ
                </button>
            </div>
         </div>
       );
   }
 
-  // --- СПИСОК ---
+  // --- СПИСОК ЮЗЕРІВ ---
   return (
     <div style={{ paddingBottom: 20 }}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15}}>
@@ -193,13 +230,21 @@ const AdminScreen = ({ onBack }) => {
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                   }}>
                 
-                <div>
-                     <div style={{fontWeight: 'bold', fontSize: 16, color: user.is_blocked ? '#ff4444' : '#fff', display:'flex', alignItems:'center', gap:8}}>
-                         {user.name || "Гість"} 
-                         {user.is_blocked && <FaBan size={14}/>}
-                     </div>
-                     <div style={{fontSize: 11, color: '#666', marginTop:2}}>
-                        {user.username ? `@${user.username}` : `ID: ${user.id}`}
+                <div style={{display:'flex', alignItems:'center', gap:12}}>
+                     {/* Аватарка в списку */}
+                     {user.avatar ? 
+                       <img src={user.avatar} style={{width:40, height:40, borderRadius:'50%', objectFit:'cover'}} alt="avatar"/> :
+                       <div style={{width:40, height:40, borderRadius:'50%', background:'#333'}}></div>
+                     }
+                     
+                     <div>
+                         <div style={{fontWeight: 'bold', fontSize: 16, color: user.is_blocked ? '#ff4444' : '#fff', display:'flex', alignItems:'center', gap:8}}>
+                             {user.name || "Гість"} 
+                             {user.is_blocked && <FaBan size={14}/>}
+                         </div>
+                         <div style={{fontSize: 11, color: '#666', marginTop:2}}>
+                            {user.username ? `@${user.username}` : `ID: ${user.id}`}
+                         </div>
                      </div>
                 </div>
 

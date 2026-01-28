@@ -1,4 +1,3 @@
-# backend/main.py
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -79,7 +78,7 @@ def user_to_json(user):
 
 @app.get("/")
 def read_root():
-    return {"message": "Gym Server v3.0 (Full Sync) 🚀"}
+    return {"message": "Gym Server v3.1 (Delete Added) 🚀"}
 
 # 🔥 ГОЛОВНА ФУНКЦІЯ: ВХІД + СИНХРОНІЗАЦІЯ
 @app.get("/api/profile/{user_id}")
@@ -187,6 +186,17 @@ def edit_user(req: FullUpdateReq, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return {"message": "Saved", "user": user_to_json(user)}
+
+# 🔥 НОВА ФУНКЦІЯ: ВИДАЛЕННЯ КОРИСТУВАЧА
+@app.delete("/api/admin/delete_user/{user_id}")
+def delete_user(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.delete(user)
+    db.commit()
+    return {"message": "User deleted"}
 
 # --- ДАНІ ПРО ЗАЛИ ---
 fake_gym_data = {
